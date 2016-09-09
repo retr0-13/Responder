@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# This file is part of Responder
-# Original work by Laurent Gaffie - Trustwave Holdings
-#
+# This file is part of Responder, a network take-over set of tools 
+# created and maintained by Laurent Gaffie.
+# email: laurent.gaffie@gmail.com
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -14,13 +14,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import utils
 import ConfigParser
+import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3'
+__version__ = 'Responder 2.3.1'
 
 class Settings:
 	
@@ -98,6 +98,7 @@ class Settings:
 		self.SessionLogFile      = os.path.join(self.LogDir, config.get('Responder Core', 'SessionLog'))
 		self.PoisonersLogFile    = os.path.join(self.LogDir, config.get('Responder Core', 'PoisonersLog'))
 		self.AnalyzeLogFile      = os.path.join(self.LogDir, config.get('Responder Core', 'AnalyzeLog'))
+		self.ResponderConfigDump = os.path.join(self.LogDir, config.get('Responder Core', 'ResponderConfigDump'))
 
 		self.FTPLog          = os.path.join(self.LogDir, 'FTP-Clear-Text-Password-%s.txt')
 		self.IMAPLog         = os.path.join(self.LogDir, 'IMAP-Clear-Text-Password-%s.txt')
@@ -187,21 +188,32 @@ class Settings:
 		# Set up logging
 		logging.basicConfig(filename=self.SessionLogFile, level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 		logging.warning('Responder Started: %s' % self.CommandLine)
-		logging.warning('Responder Config: %s' % str(self))
 
 		Formatter = logging.Formatter('%(asctime)s - %(message)s')
+                CLog_Handler = logging.FileHandler(self.ResponderConfigDump, 'a')
 		PLog_Handler = logging.FileHandler(self.PoisonersLogFile, 'w')
 		ALog_Handler = logging.FileHandler(self.AnalyzeLogFile, 'a')
+                CLog_Handler.setLevel(logging.INFO)
 		PLog_Handler.setLevel(logging.INFO)
 		ALog_Handler.setLevel(logging.INFO)
 		PLog_Handler.setFormatter(Formatter)
 		ALog_Handler.setFormatter(Formatter)
+
+		self.ResponderConfigLogger = logging.getLogger('Config Dump Log')
+		self.ResponderConfigLogger.addHandler(CLog_Handler)
 
 		self.PoisonersLogger = logging.getLogger('Poisoners Log')
 		self.PoisonersLogger.addHandler(PLog_Handler)
 
 		self.AnalyzeLogger = logging.getLogger('Analyze Log')
 		self.AnalyzeLogger.addHandler(ALog_Handler)
+                
+                NetworkCard = subprocess.check_output(["ifconfig", "-a"])
+                DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
+                RoutingInfo = subprocess.check_output(["netstat", "-rn"])
+                Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
+                self.ResponderConfigLogger.warning(Message)
+                self.ResponderConfigLogger.warning(str(self))
 
 def init():
 	global Config
