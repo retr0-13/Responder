@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# This file is part of Responder
-# Original work by Laurent Gaffie - Trustwave Holdings
-#
+# This file is part of Responder, a network take-over set of tools 
+# created and maintained by Laurent Gaffie.
+# email: laurent.gaffie@gmail.com
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -39,11 +39,12 @@ def color(txt, code = 1, modifier = 0):
 	return "\033[%d;3%dm%s\033[0m" % (modifier, code, txt)
 
 def text(txt):
-	logging.info(txt)
 	if os.name == 'nt':
 		return txt
 	return '\r' + re.sub(r'\[([^]]*)\]', "\033[1;34m[\\1]\033[0m", txt)
 
+def textlogging(txt):
+	logging.info(txt)
 
 def IsOnTheSameSubnet(ip, net):
 	net += '/24'
@@ -109,7 +110,6 @@ def FindLocalIP(Iface, OURIP):
 # Function used to write captured hashs to a file.
 def WriteData(outfile, data, user):
 	logging.info("[*] Captured Hash: %s" % data)
-
 	if not os.path.isfile(outfile):
 		with open(outfile,"w") as outf:
 			outf.write(data + '\n')
@@ -164,19 +164,23 @@ def SaveToDb(result):
 	if not count or settings.Config.Verbose:  # Print output
 		if len(result['client']):
 			print text("[%s] %s Client   : %s" % (result['module'], result['type'], color(result['client'], 3)))
+                        textlogging("[%s] %s Client   : %s" % (result['module'], result['type'], result['client']))
 		if len(result['hostname']):
 			print text("[%s] %s Hostname : %s" % (result['module'], result['type'], color(result['hostname'], 3)))
+                        textlogging("[%s] %s Hostname : %s" % (result['module'], result['type'], result['hostname']))
 		if len(result['user']):
 			print text("[%s] %s Username : %s" % (result['module'], result['type'], color(result['user'], 3)))
-		
+                        textlogging("[%s] %s Username : %s" % (result['module'], result['type'], result['user']))
 		# Bu order of priority, print cleartext, fullhash, or hash
 		if len(result['cleartext']):
 			print text("[%s] %s Password : %s" % (result['module'], result['type'], color(result['cleartext'], 3)))
+                        textlogging("[%s] %s Password : %s" % (result['module'], result['type'], result['cleartext']))
 		elif len(result['fullhash']):
 			print text("[%s] %s Hash     : %s" % (result['module'], result['type'], color(result['fullhash'], 3)))
+                        textlogging("[%s] %s Hash     : %s" % (result['module'], result['type'], result['fullhash']))
 		elif len(result['hash']):
 			print text("[%s] %s Hash     : %s" % (result['module'], result['type'], color(result['hash'], 3)))
-
+                        textlogging("[%s] %s Hash     : %s" % (result['module'], result['type'], result['hash']))
 		# Appending auto-ignore list if required
 		# Except if this is a machine account's hash
 		if settings.Config.AutoIgnore and not result['user'].endswith('$'):
