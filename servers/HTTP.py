@@ -224,19 +224,17 @@ def PacketSequence(data, client):
 class HTTP(BaseRequestHandler):
 	def handle(self):
 		try:
-			while True:
-				self.request.settimeout(1)
-				data = self.request.recv(8092)
-				Buffer = WpadCustom(data, self.client_address[0])
+			self.request.settimeout(1)
+			data = self.request.recv(8092)
+			Buffer = WpadCustom(data, self.client_address[0])
 
-				if Buffer and settings.Config.Force_WPAD_Auth == False:
-					self.request.send(Buffer)
-					if settings.Config.Verbose:
-						print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
-
-				else:
-					Buffer = PacketSequence(data,self.client_address[0])
-					self.request.send(Buffer)
+			if Buffer and settings.Config.Force_WPAD_Auth == False:
+				self.request.send(Buffer)
+				if settings.Config.Verbose:
+					print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
+			else:
+				Buffer = PacketSequence(data,self.client_address[0])
+				self.request.send(Buffer)
 		except socket.error:
 			pass
 
@@ -249,19 +247,18 @@ class HTTPS(StreamRequestHandler):
 
 	def handle(self):
 		try:
-			while True:
-				data = self.exchange.recv(8092)
-				self.exchange.settimeout(0.5)
-				Buffer = WpadCustom(data,self.client_address[0])
+			data = self.exchange.recv(8092)
+			self.exchange.settimeout(0.5)
+			Buffer = WpadCustom(data,self.client_address[0])
 				
-				if Buffer and settings.Config.Force_WPAD_Auth == False:
-					self.exchange.send(Buffer)
-					if settings.Config.Verbose:
-						print text("[HTTPS] WPAD (no auth) file sent to %s" % self.client_address[0])
+			if Buffer and settings.Config.Force_WPAD_Auth == False:
+				self.exchange.send(Buffer)
+				if settings.Config.Verbose:
+					print text("[HTTPS] WPAD (no auth) file sent to %s" % self.client_address[0])
 
-				else:
-					Buffer = PacketSequence(data,self.client_address[0])
-					self.exchange.send(Buffer)
+			else:
+				Buffer = PacketSequence(data,self.client_address[0])
+				self.exchange.send(Buffer)
 		except:
 			pass
 
