@@ -21,7 +21,11 @@ import logging
 import socket
 import time
 import settings
+import datetime
 
+def HTTPCurrentDate():
+    Date = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+    return Date
 try:
 	import sqlite3
 except:
