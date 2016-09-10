@@ -205,11 +205,10 @@ class NTLM_Challenge(Packet):
 class IIS_Auth_401_Ans(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 401 Unauthorized\r\n"),
-		("ServerType",    "Server: Microsoft-IIS/6.0\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
 		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
 		("Type",          "Content-Type: text/html\r\n"),
 		("WWW-Auth",      "WWW-Authenticate: NTLM\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("Len",           "Content-Length: 0\r\n"),
 		("CRLF",          "\r\n"),
 	])
@@ -217,11 +216,10 @@ class IIS_Auth_401_Ans(Packet):
 class IIS_Auth_Granted(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 200 OK\r\n"),
-		("ServerType",    "Server: Microsoft-IIS/6.0\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
 		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
 		("Type",          "Content-Type: text/html\r\n"),
 		("WWW-Auth",      "WWW-Authenticate: NTLM\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("ContentLen",    "Content-Length: "),
 		("ActualLen",     "76"),
 		("CRLF",          "\r\n\r\n"),
@@ -233,7 +231,7 @@ class IIS_Auth_Granted(Packet):
 class IIS_NTLM_Challenge_Ans(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 401 Unauthorized\r\n"),
-		("ServerType",    "Server: Microsoft-IIS/6.0\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
 		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
 		("Type",          "Content-Type: text/html\r\n"),
 		("WWWAuth",       "WWW-Authenticate: NTLM "),
@@ -249,11 +247,10 @@ class IIS_NTLM_Challenge_Ans(Packet):
 class IIS_Basic_401_Ans(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 401 Unauthorized\r\n"),
-		("ServerType",    "Server: Microsoft-IIS/6.0\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
 		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
 		("Type",          "Content-Type: text/html\r\n"),
 		("WWW-Auth",      "WWW-Authenticate: Basic realm=\"Authentication Required\"\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("AllowOrigin",   "Access-Control-Allow-Origin: *\r\n"),
 		("AllowCreds",    "Access-Control-Allow-Credentials: true\r\n"),
 		("Len",           "Content-Length: 0\r\n"),
@@ -264,10 +261,9 @@ class IIS_Basic_401_Ans(Packet):
 class WPADScript(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 200 OK\r\n"),
-		("ServerTlype",    "Server: Microsoft-IIS/6.0\r\n"),
+		("ServerTlype",    "Server: Microsoft-IIS/7.5\r\n"),
 		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
 		("Type",          "Content-Type: application/x-ns-proxy-autoconfig\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("ContentLen",    "Content-Length: "),
 		("ActualLen",     "76"),
 		("CRLF",          "\r\n\r\n"),
@@ -283,7 +279,6 @@ class ServeExeFile(Packet):
 		("LastModified",  "Last-Modified: "+HTTPCurrentDate()+"\r\n"),
 		("AcceptRanges",  "Accept-Ranges: bytes\r\n"),
 		("Server",        "Server: Microsoft-IIS/7.5\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("ContentDisp",   "Content-Disposition: attachment; filename="),
 		("ContentDiFile", ""),
 		("FileCRLF",      ";\r\n"),
@@ -306,7 +301,6 @@ class ServeHtmlFile(Packet):
 		("LastModified",  "Last-Modified: "+HTTPCurrentDate()+"\r\n"),
 		("AcceptRanges",  "Accept-Ranges: bytes\r\n"),
 		("Server",        "Server: Microsoft-IIS/7.5\r\n"),
-		("PoweredBy",     "X-Powered-By: ASP.NET\r\n"),
 		("ContentLen",    "Content-Length: "),
 		("ActualLen",     "76"),
 		("Date",          "\r\nDate: "+HTTPCurrentDate()+"\r\n"),
