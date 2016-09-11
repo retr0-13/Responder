@@ -19,6 +19,10 @@ from HTTP import ParseHTTPHash
 from packets import *
 from utils import *
 
+def GrabUserAgent(data):
+	UserAgent = re.findall(r'(?<=User-Agent: )[^\r]*', data)
+        print text("[Proxy-Auth] %s" % color("User-Agent        : "+UserAgent[0], 2))
+
 def GrabCookie(data):
 	Cookie = re.search(r'(Cookie:*.\=*)[^\r\n]*', data)
 
@@ -59,13 +63,15 @@ def PacketSequence(data, client):
 		if Packet_NTLM == "\x03":
 			NTLM_Auth = b64decode(''.join(NTLM_Auth))
        	                ParseHTTPHash(NTLM_Auth, client, "Proxy-Auth")
+                        GrabUserAgent(data)
                         GrabCookie(data)
                         GrabHost(data)
-   	                return False
+   	                return False #Send a RST with SO_LINGER when close() is called (see Responder.py)
 		else:
                		return False
 
 	elif Basic_Auth:
+                GrabUserAgent(data)
                 GrabCookie(data)
                 GrabHost(data)
 		ClearText_Auth = b64decode(''.join(Basic_Auth))
@@ -90,12 +96,7 @@ def PacketSequence(data, client):
 		return str(Response)
 
 class Proxy_Auth(SocketServer.BaseRequestHandler):
-     
-    def server_bind(self):
-       self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR,SO_REUSEPORT, 1)
-       self.socket.bind(self.server_address)
-       self.socket.setblocking(0)
-       self.socket.setdefaulttimeout(1)
+
 
     def handle(self):
 		try:
@@ -105,4 +106,5 @@ class Proxy_Auth(SocketServer.BaseRequestHandler):
 
 		except:
                    	pass
+
 

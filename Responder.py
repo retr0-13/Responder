@@ -20,7 +20,7 @@ import ssl
 from SocketServer import TCPServer, UDPServer, ThreadingMixIn
 from threading import Thread
 from utils import *
-
+import struct
 banner()
 
 parser = optparse.OptionParser(usage='python %prog -I eth0 -w -r -f\nor:\npython %prog -I eth0 -wrf', version=settings.__version__, prog=sys.argv[0])
@@ -77,6 +77,16 @@ class ThreadingTCPServer(ThreadingMixIn, TCPServer):
 				pass
 		TCPServer.server_bind(self)
 
+class ThreadingTCPServerAuth(ThreadingMixIn, TCPServer):
+	def server_bind(self):
+		if OsInterfaceIsSupported():
+			try:
+				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+			except:
+				pass
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+		TCPServer.server_bind(self)
+
 class ThreadingUDPMDNSServer(ThreadingMixIn, UDPServer):
 	def server_bind(self):
 		MADDR = "224.0.0.251"
@@ -113,6 +123,7 @@ ThreadingUDPServer.allow_reuse_address = 1
 ThreadingTCPServer.allow_reuse_address = 1
 ThreadingUDPMDNSServer.allow_reuse_address = 1
 ThreadingUDPLLMNRServer.allow_reuse_address = 1
+ThreadingTCPServerAuth.allow_reuse_address = 1
 
 def serve_thread_udp_broadcast(host, port, handler):
 	try:
@@ -156,6 +167,17 @@ def serve_thread_tcp(host, port, handler):
 			server.serve_forever()
 		else:
 			server = ThreadingTCPServer((host, port), handler)
+			server.serve_forever()
+	except:
+		print color("[!] ", 1, 1) + "Error starting TCP server on port " + str(port) + ", check permissions or other servers running."
+
+def serve_thread_tcp_auth(host, port, handler):
+	try:
+		if OsInterfaceIsSupported():
+			server = ThreadingTCPServerAuth((settings.Config.Bind_To, port), handler)
+			server.serve_forever()
+		else:
+			server = ThreadingTCPServerAuth((host, port), handler)
 			server.serve_forever()
 	except:
 		print color("[!] ", 1, 1) + "Error starting TCP server on port " + str(port) + ", check permissions or other servers running."
@@ -207,7 +229,7 @@ def main():
 
 		if settings.Config.ProxyAuth_On_Off:
 		        from servers.Proxy_Auth import Proxy_Auth
-		        threads.append(Thread(target=serve_thread_tcp, args=('', 3128, Proxy_Auth,)))
+		        threads.append(Thread(target=serve_thread_tcp_auth, args=('', 3128, Proxy_Auth,)))
 
 		if settings.Config.SMB_On_Off:
 			if settings.Config.LM_On_Off:

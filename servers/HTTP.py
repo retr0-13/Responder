@@ -14,9 +14,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import struct
 from SocketServer import BaseRequestHandler, StreamRequestHandler
 from base64 import b64decode
-import struct
 from utils import *
 
 from packets import NTLM_Challenge
@@ -103,9 +103,26 @@ def GrabReferer(data, host):
 		return Referer
 	return False
 
+def SpotFirefox(data):
+	UserAgent = re.findall(r'(?<=User-Agent: )[^\r]*', data)
+        print text("[HTTP] %s" % color("User-Agent        : "+UserAgent[0], 2))
+	if UserAgent:
+                IsFirefox = re.search('Firefox', UserAgent[0])
+                if IsFirefox:
+                        print color("[WARNING]: Mozilla doesn't switch to fail-over proxies (as it should) when one's failing.", 1)
+                        print color("[WARNING]: The current WPAD script will cause disruption on this host. Sending a dummy wpad script (DIRECT connect)", 1)
+                        return True
+                else:
+	               return False
+
 def WpadCustom(data, client):
 	Wpad = re.search(r'(/wpad.dat|/*\.pac)', data)
-	if Wpad:
+	if Wpad and SpotFirefox(data):
+		Buffer = WPADScript(Payload="function FindProxyForURL(url, host){return 'DIRECT';}")
+		Buffer.calculate()
+		return str(Buffer)
+
+	if Wpad and SpotFirefox(data) == False:
 		Buffer = WPADScript(Payload=settings.Config.WPAD_Script)
 		Buffer.calculate()
 		return str(Buffer)
