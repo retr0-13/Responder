@@ -25,7 +25,7 @@ from packets import WPADScript, ServeExeFile, ServeHtmlFile
 
 
 # Parse NTLMv1/v2 hash.
-def ParseHTTPHash(data, client):
+def ParseHTTPHash(data, client, module):
 	LMhashLen    = struct.unpack('<H',data[12:14])[0]
 	LMhashOffset = struct.unpack('<H',data[16:18])[0]
 	LMHash       = data[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
@@ -43,9 +43,8 @@ def ParseHTTPHash(data, client):
 		HostNameOffset  = struct.unpack('<H',data[48:50])[0]
 		HostName        = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
 		WriteHash       = '%s::%s:%s:%s:%s' % (User, HostName, LMHash, NTHash, settings.Config.NumChal)
-
 		SaveToDb({
-			'module': 'HTTP', 
+			'module': module, 
 			'type': 'NTLMv1', 
 			'client': client, 
 			'host': HostName, 
@@ -63,9 +62,9 @@ def ParseHTTPHash(data, client):
 		HostNameOffset = struct.unpack('<H',data[48:50])[0]
 		HostName       = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
 		WriteHash      = '%s::%s:%s:%s:%s' % (User, Domain, settings.Config.NumChal, NTHash[:32], NTHash[32:])
-
+                 
 		SaveToDb({
-			'module': 'HTTP', 
+			'module': module, 
 			'type': 'NTLMv2', 
 			'client': client, 
 			'host': HostName, 
@@ -125,7 +124,6 @@ def RespondWithFile(client, filename, dlname=None):
 
 	Buffer.calculate()
 	print text("[HTTP] Sending file %s to %s" % (filename, client))
-
 	return str(Buffer)
 
 def GrabURL(data, host):
@@ -138,6 +136,7 @@ def GrabURL(data, host):
 
 	if POST and settings.Config.Verbose:
 		print text("[HTTP] POST request from: %-15s  URL: %s" % (host, color(''.join(POST), 5)))
+
 		if len(''.join(POSTDATA)) > 2:
 			print text("[HTTP] POST Data: %s" % ''.join(POSTDATA).strip())
 
@@ -175,10 +174,11 @@ def PacketSequence(data, client):
 
 		if Packet_NTLM == "\x03":
 			NTLM_Auth = b64decode(''.join(NTLM_Auth))
-			ParseHTTPHash(NTLM_Auth, client)
+			ParseHTTPHash(NTLM_Auth, client, "HTTP")
 
 			if settings.Config.Force_WPAD_Auth and WPAD_Custom:
 				print text("[HTTP] WPAD (auth) file sent to %s" % client)
+
 				return WPAD_Custom
 			else:
 				Buffer = IIS_Auth_Granted(Payload=settings.Config.HtmlToInject)
@@ -204,6 +204,7 @@ def PacketSequence(data, client):
 		if settings.Config.Force_WPAD_Auth and WPAD_Custom:
 			if settings.Config.Verbose:
 				print text("[HTTP] WPAD (auth) file sent to %s" % client)
+
 			return WPAD_Custom
 		else:
 			Buffer = IIS_Auth_Granted(Payload=settings.Config.HtmlToInject)
@@ -214,10 +215,12 @@ def PacketSequence(data, client):
 			Response = IIS_Basic_401_Ans()
 			if settings.Config.Verbose:
 				print text("[HTTP] Sending BASIC authentication request to %s" % client)
+
 		else:
 			Response = IIS_Auth_401_Ans()
 			if settings.Config.Verbose:
 				print text("[HTTP] Sending NTLM authentication request to %s" % client)
+
 		return str(Response)
 
 # HTTP Server class
@@ -232,6 +235,7 @@ class HTTP(BaseRequestHandler):
 				self.request.send(Buffer)
 				if settings.Config.Verbose:
 					print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
+
 			else:
 				Buffer = PacketSequence(data,self.client_address[0])
 				self.request.send(Buffer)

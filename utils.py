@@ -43,12 +43,11 @@ def color(txt, code = 1, modifier = 0):
 	return "\033[%d;3%dm%s\033[0m" % (modifier, code, txt)
 
 def text(txt):
+        stripcolors = re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', txt)
+        logging.info(stripcolors)
 	if os.name == 'nt':
 		return txt
 	return '\r' + re.sub(r'\[([^]]*)\]', "\033[1;34m[\\1]\033[0m", txt)
-
-def textlogging(txt):
-	logging.info(txt)
 
 def IsOnTheSameSubnet(ip, net):
 	net += '/24'
@@ -57,7 +56,6 @@ def IsOnTheSameSubnet(ip, net):
 	netaddr = int(''.join([ '%02x' % int(x) for x in netstr.split('.') ]), 16)
 	mask = (0xffffffff << (32 - int(bits))) & 0xffffffff
 	return (ipaddr & mask) == (netaddr & mask)
-
 
 def RespondToThisIP(ClientIp):
 
@@ -168,30 +166,31 @@ def SaveToDb(result):
 	if not count or settings.Config.Verbose:  # Print output
 		if len(result['client']):
 			print text("[%s] %s Client   : %s" % (result['module'], result['type'], color(result['client'], 3)))
-                        textlogging("[%s] %s Client   : %s" % (result['module'], result['type'], result['client']))
+
 		if len(result['hostname']):
 			print text("[%s] %s Hostname : %s" % (result['module'], result['type'], color(result['hostname'], 3)))
-                        textlogging("[%s] %s Hostname : %s" % (result['module'], result['type'], result['hostname']))
+
 		if len(result['user']):
 			print text("[%s] %s Username : %s" % (result['module'], result['type'], color(result['user'], 3)))
-                        textlogging("[%s] %s Username : %s" % (result['module'], result['type'], result['user']))
+
 		# Bu order of priority, print cleartext, fullhash, or hash
 		if len(result['cleartext']):
 			print text("[%s] %s Password : %s" % (result['module'], result['type'], color(result['cleartext'], 3)))
-                        textlogging("[%s] %s Password : %s" % (result['module'], result['type'], result['cleartext']))
+
 		elif len(result['fullhash']):
 			print text("[%s] %s Hash     : %s" % (result['module'], result['type'], color(result['fullhash'], 3)))
-                        textlogging("[%s] %s Hash     : %s" % (result['module'], result['type'], result['fullhash']))
+
 		elif len(result['hash']):
 			print text("[%s] %s Hash     : %s" % (result['module'], result['type'], color(result['hash'], 3)))
-                        textlogging("[%s] %s Hash     : %s" % (result['module'], result['type'], result['hash']))
+
 		# Appending auto-ignore list if required
 		# Except if this is a machine account's hash
 		if settings.Config.AutoIgnore and not result['user'].endswith('$'):
 			settings.Config.AutoIgnoreList.append(result['client'])
 			print color('[*] Adding client %s to auto-ignore list' % result['client'], 4, 1)
 	else:
-		print color('[*]', 3, 1), 'Skipping previously captured hash for %s' % result['user']
+		print color('[*] Skipping previously captured hash for %s' % result['user'], 3, 1)
+		text('[*] Skipping previously captured hash for %s' % result['user'])
 		cursor.execute("UPDATE responder SET timestamp=datetime('now') WHERE user=? AND client=?", (result['user'], result['client']))
 		cursor.commit()
 	cursor.close()
@@ -266,6 +265,7 @@ def StartupMessage():
 	print '    %-27s' % "HTTP server" + (enabled if settings.Config.HTTP_On_Off else disabled)
 	print '    %-27s' % "HTTPS server" + (enabled if settings.Config.SSL_On_Off else disabled)
 	print '    %-27s' % "WPAD proxy" + (enabled if settings.Config.WPAD_On_Off else disabled)
+	print '    %-27s' % "Auth proxy" + (enabled if settings.Config.ProxyAuth_On_Off else disabled)
 	print '    %-27s' % "SMB server" + (enabled if settings.Config.SMB_On_Off else disabled)
 	print '    %-27s' % "Kerberos server" + (enabled if settings.Config.Krb_On_Off else disabled)
 	print '    %-27s' % "SQL server" + (enabled if settings.Config.SQL_On_Off else disabled)

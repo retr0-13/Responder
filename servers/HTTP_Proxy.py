@@ -344,3 +344,4 @@ class HTTP_Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 	do_POST = do_GET
 	do_PUT  = do_GET
 	do_DELETE=do_GET
+

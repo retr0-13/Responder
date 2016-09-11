@@ -311,6 +311,54 @@ class ServeHtmlFile(Packet):
 	def calculate(self):
 		self.fields["ActualLen"] = len(str(self.fields["Payload"]))
 
+##### WPAD Auth Packets #####
+class WPAD_Auth_407_Ans(Packet):
+	fields = OrderedDict([
+		("Code",          "HTTP/1.1 407 Unauthorized\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
+		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
+		("Type",          "Content-Type: text/html\r\n"),
+		("WWW-Auth",      "Proxy-Authenticate: NTLM\r\n"),
+		("Connection",    "Proxy-Connection: close\r\n"),
+		("Cache-Control",    "Cache-Control: no-cache\r\n"),
+		("Pragma",        "Pragma: no-cache\r\n"),
+		("Proxy-Support", "Proxy-Support: Session-Based-Authentication\r\n"),
+		("Len",           "Content-Length: 0\r\n"),
+		("CRLF",          "\r\n"),
+	])
+
+
+class WPAD_NTLM_Challenge_Ans(Packet):
+	fields = OrderedDict([
+		("Code",          "HTTP/1.1 407 Unauthorized\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
+		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
+		("Type",          "Content-Type: text/html\r\n"),
+		("WWWAuth",       "Proxy-Authenticate: NTLM "),
+		("Payload",       ""),
+		("Payload-CRLF",  "\r\n"),
+		("Len",           "Content-Length: 0\r\n"),
+		("CRLF",          "\r\n"),
+	])
+
+	def calculate(self,payload):
+		self.fields["Payload"] = b64encode(payload)
+
+class WPAD_Basic_407_Ans(Packet):
+	fields = OrderedDict([
+		("Code",          "HTTP/1.1 407 Unauthorized\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
+		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
+		("Type",          "Content-Type: text/html\r\n"),
+		("WWW-Auth",      "Proxy-Authenticate: Basic realm=\"Authentication Required\"\r\n"),
+		("Connection",    "Proxy-Connection: close\r\n"),
+		("Cache-Control",    "Cache-Control: no-cache\r\n"),
+		("Pragma",        "Pragma: no-cache\r\n"),
+		("Proxy-Support", "Proxy-Support: Session-Based-Authentication\r\n"),
+		("Len",           "Content-Length: 0\r\n"),
+		("CRLF",          "\r\n"),
+	])
+
 ##### FTP Packets #####
 class FTPPacket(Packet):
 	fields = OrderedDict([
@@ -1533,4 +1581,5 @@ class SMB2Session2Data(Packet):
 		("SessionFlag",     "\x00\x00"),
 		("SecBlobOffSet",   "\x00\x00\x00\x00"),
     ])
+
 

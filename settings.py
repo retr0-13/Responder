@@ -20,7 +20,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3.1'
+__version__ = 'Responder 2.3.2'
 
 class Settings:
 	
@@ -152,19 +152,20 @@ class Settings:
 		self.AutoIgnoreList             = []
 
 		# CLI options
-		self.LM_On_Off       = options.LM_On_Off
-		self.WPAD_On_Off     = options.WPAD_On_Off
-		self.Wredirect       = options.Wredirect
-		self.NBTNSDomain     = options.NBTNSDomain
-		self.Basic           = options.Basic
-		self.Finger_On_Off   = options.Finger
-		self.Interface       = options.Interface
-		self.OURIP           = options.OURIP
-		self.Force_WPAD_Auth = options.Force_WPAD_Auth
-		self.Upstream_Proxy  = options.Upstream_Proxy
-		self.AnalyzeMode     = options.Analyze
-		self.Verbose         = options.Verbose
-		self.CommandLine     = str(sys.argv)
+		self.LM_On_Off          = options.LM_On_Off
+		self.WPAD_On_Off        = options.WPAD_On_Off
+		self.Wredirect          = options.Wredirect
+		self.NBTNSDomain        = options.NBTNSDomain
+		self.Basic              = options.Basic
+		self.Finger_On_Off      = options.Finger
+		self.Interface          = options.Interface
+		self.OURIP              = options.OURIP
+		self.Force_WPAD_Auth    = options.Force_WPAD_Auth
+		self.Upstream_Proxy     = options.Upstream_Proxy
+		self.AnalyzeMode        = options.Analyze
+		self.Verbose            = options.Verbose
+		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
+		self.CommandLine        = str(sys.argv)
 
 		if self.HtmlToInject is None:
 			self.HtmlToInject = ''

@@ -34,6 +34,9 @@ parser.add_option('-f','--fingerprint',    action="store_true", help="This optio
 parser.add_option('-w','--wpad',           action="store_true", help="Start the WPAD rogue proxy server. Default value is False", dest="WPAD_On_Off", default=False)
 parser.add_option('-u','--upstream-proxy', action="store",      help="Upstream HTTP proxy used by the rogue WPAD Proxy for outgoing requests (format: host:port)", dest="Upstream_Proxy", default=None)
 parser.add_option('-F','--ForceWpadAuth',  action="store_true", help="Force NTLM/Basic authentication on wpad.dat file retrieval. This may cause a login prompt. Default: False", dest="Force_WPAD_Auth", default=False)
+
+parser.add_option('-P','--ProxyAuth',       action="store_true", help="Force NTLM (transparently)/Basic (prompt) authentication for the proxy. WPAD doesn't need to be ON. This option is highly effective when combined with -r. Default: False", dest="ProxyAuth_On_Off", default=False)
+
 parser.add_option('--lm',                  action="store_true", help="Force LM hashing downgrade for Windows XP/2003 and earlier. Default: False", dest="LM_On_Off", default=False)
 parser.add_option('-v','--verbose',        action="store_true", help="Increase verbosity.", dest="Verbose")
 options, args = parser.parse_args()
@@ -187,8 +190,8 @@ def main():
 		threads.append(Thread(target=serve_NBTNS_poisoner, args=('', 137,  NBTNS,)))
 
 		# Load Browser Listener
-		from servers.Browser import Browser
-		threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
+		#from servers.Browser import Browser
+		#threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
 
 		if settings.Config.HTTP_On_Off:
 			from servers.HTTP import HTTP
@@ -201,6 +204,10 @@ def main():
 		if settings.Config.WPAD_On_Off:
 			from servers.HTTP_Proxy import HTTP_Proxy
 			threads.append(Thread(target=serve_thread_tcp, args=('', 3141, HTTP_Proxy,)))
+
+		if settings.Config.ProxyAuth_On_Off:
+		        from servers.Proxy_Auth import Proxy_Auth
+		        threads.append(Thread(target=serve_thread_tcp, args=('', 3128, Proxy_Auth,)))
 
 		if settings.Config.SMB_On_Off:
 			if settings.Config.LM_On_Off:
