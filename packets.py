@@ -19,7 +19,7 @@ import settings
 
 from base64 import b64decode, b64encode
 from odict import OrderedDict
-from utils import HTTPCurrentDate
+from utils import HTTPCurrentDate, RespondWithIPAton
 
 # Packet class handling all packet generation (see odict.py).
 class Packet():
@@ -57,7 +57,7 @@ class NBT_Ans(Packet):
 	def calculate(self,data):
 		self.fields["Tid"] = data[0:2]
 		self.fields["NbtName"] = data[12:46]
-		self.fields["IP"] = settings.Config.IP_aton
+                self.fields["IP"] = RespondWithIPAton()
 
 # DNS Answer Packet
 class DNS_Ans(Packet):
@@ -83,7 +83,7 @@ class DNS_Ans(Packet):
 	def calculate(self,data):
 		self.fields["Tid"] = data[0:2]
 		self.fields["QuestionName"] = ''.join(data[12:].split('\x00')[:1])
-		self.fields["IP"] = settings.Config.IP_aton
+                self.fields["IP"] = RespondWithIPAton()
 		self.fields["IPLen"] = struct.pack(">h",len(self.fields["IP"]))
 
 # LLMNR Answer Packet
@@ -111,7 +111,7 @@ class LLMNR_Ans(Packet):
 	])
 
 	def calculate(self):
-		self.fields["IP"] = settings.Config.IP_aton
+                self.fields["IP"] = RespondWithIPAton()
 		self.fields["IPLen"] = struct.pack(">h",len(self.fields["IP"]))
 		self.fields["AnswerNameLen"] = struct.pack(">h",len(self.fields["AnswerName"]))[1]
 		self.fields["QuestionNameLen"] = struct.pack(">h",len(self.fields["QuestionName"]))[1]

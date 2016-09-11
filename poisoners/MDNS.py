@@ -36,7 +36,6 @@ def Poisoned_MDNS_Name(data):
 	data = data[12:]
 	return data[:len(data)-5]
 
-
 class MDNS(BaseRequestHandler):
 	def handle(self):
 		MADDR = "224.0.0.251"
@@ -56,7 +55,7 @@ class MDNS(BaseRequestHandler):
 			if Parse_IPV6_Addr(data):
 
 				Poisoned_Name = Poisoned_MDNS_Name(data)
-				Buffer = MDNS_Ans(AnswerName = Poisoned_Name, IP=socket.inet_aton(settings.Config.Bind_To))
+				Buffer = MDNS_Ans(AnswerName = Poisoned_Name, IP=RespondWithIPAton())
 				Buffer.calculate()
 				soc.sendto(str(Buffer), (MADDR, MPORT))
 

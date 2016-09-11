@@ -82,6 +82,12 @@ def RespondToThisName(Name):
 def RespondToThisHost(ClientIp, Name):
 	return RespondToThisIP(ClientIp) and RespondToThisName(Name)
 
+def RespondWithIPAton():
+       if settings.Config.ExternalIP:
+               return settings.Config.ExternalIPAton
+       else:
+               return settings.Config.IP_aton
+
 def OsInterfaceIsSupported():
 	if settings.Config.Interface != "Not set":
 		return not IsOsX()

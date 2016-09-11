@@ -152,6 +152,7 @@ class Settings:
 		self.AutoIgnoreList             = []
 
 		# CLI options
+                self.ExternalIP         = options.ExternalIP
 		self.LM_On_Off          = options.LM_On_Off
 		self.WPAD_On_Off        = options.WPAD_On_Off
 		self.Wredirect          = options.Wredirect
@@ -167,11 +168,13 @@ class Settings:
 		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
 		self.CommandLine        = str(sys.argv)
 
+                if self.ExternalIP:
+                        self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
+
 		if self.HtmlToInject is None:
 			self.HtmlToInject = ''
 
-		self.Bind_To = utils.FindLocalIP(self.Interface, self.OURIP)
-
+                self.Bind_To = utils.FindLocalIP(self.Interface, self.OURIP)
 		self.IP_aton         = socket.inet_aton(self.Bind_To)
 		self.Os_version      = sys.platform
 
