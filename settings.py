@@ -20,7 +20,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3.2'
+__version__ = 'Responder 2.3.2.3'
 
 class Settings:
 	
@@ -195,17 +195,12 @@ class Settings:
 		logging.warning('Responder Started: %s' % self.CommandLine)
 
 		Formatter = logging.Formatter('%(asctime)s - %(message)s')
-                CLog_Handler = logging.FileHandler(self.ResponderConfigDump, 'a')
 		PLog_Handler = logging.FileHandler(self.PoisonersLogFile, 'w')
 		ALog_Handler = logging.FileHandler(self.AnalyzeLogFile, 'a')
-                CLog_Handler.setLevel(logging.INFO)
 		PLog_Handler.setLevel(logging.INFO)
 		ALog_Handler.setLevel(logging.INFO)
 		PLog_Handler.setFormatter(Formatter)
 		ALog_Handler.setFormatter(Formatter)
-
-		self.ResponderConfigLogger = logging.getLogger('Config Dump Log')
-		self.ResponderConfigLogger.addHandler(CLog_Handler)
 
 		self.PoisonersLogger = logging.getLogger('Poisoners Log')
 		self.PoisonersLogger.addHandler(PLog_Handler)
@@ -217,8 +212,8 @@ class Settings:
                 DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
                 RoutingInfo = subprocess.check_output(["netstat", "-rn"])
                 Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
-                self.ResponderConfigLogger.warning(Message)
-                self.ResponderConfigLogger.warning(str(self))
+                utils.DumpConfig(self.ResponderConfigDump, Message)
+                utils.DumpConfig(self.ResponderConfigDump,str(self))
 
 def init():
 	global Config

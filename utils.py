@@ -130,6 +130,10 @@ def WriteData(outfile, data, user):
 	with open(outfile,"a") as outf2:
 		outf2.write(data + '\n')
 
+# Function used to write debug config and network info.
+def DumpConfig(outfile, data):
+	with open(outfile,"a") as dump:
+		dump.write(data + '\n')
 
 def SaveToDb(result):
 	# Creating the DB if it doesn't exist
