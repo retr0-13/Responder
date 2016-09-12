@@ -131,6 +131,11 @@ Options:
 	                        BROWSER, LLMNR requests without responding.
 	  -I eth0, --interface=eth0
 	                        Network interface to use.
+          -i 10.0.0.21, --ip=10.0.0.21
+                                Local IP to use (only for OSX)
+          -e 10.0.0.22, --externalip=10.0.0.22
+                                Poison all requests with another IP address than
+                                Responder's one.
 	  -b, --basic           Return a Basic HTTP authentication. Default: NTLM
 	  -r, --wredir          Enable answers for netbios wredir suffix queries.
 	                        Answering to wredir will likely break stuff on the
