@@ -21,7 +21,8 @@ from utils import *
 
 def GrabUserAgent(data):
 	UserAgent = re.findall(r'(?<=User-Agent: )[^\r]*', data)
-        print text("[Proxy-Auth] %s" % color("User-Agent        : "+UserAgent[0], 2))
+        if UserAgent:
+           print text("[Proxy-Auth] %s" % color("User-Agent        : "+UserAgent[0], 2))
 
 def GrabCookie(data):
 	Cookie = re.search(r'(Cookie:*.\=*)[^\r\n]*', data)

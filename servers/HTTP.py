@@ -105,8 +105,8 @@ def GrabReferer(data, host):
 
 def SpotFirefox(data):
 	UserAgent = re.findall(r'(?<=User-Agent: )[^\r]*', data)
-        print text("[HTTP] %s" % color("User-Agent        : "+UserAgent[0], 2))
 	if UserAgent:
+                print text("[HTTP] %s" % color("User-Agent        : "+UserAgent[0], 2))
                 IsFirefox = re.search('Firefox', UserAgent[0])
                 if IsFirefox:
                         print color("[WARNING]: Mozilla doesn't switch to fail-over proxies (as it should) when one's failing.", 1)
