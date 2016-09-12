@@ -279,7 +279,7 @@ class HTTP(BaseRequestHandler):
 					Buffer = PacketSequence(data,self.client_address[0])
 					self.request.send(Buffer)
 		except socket.error:
-			raise
+			pass
 
 # HTTPS Server class
 class HTTPS(StreamRequestHandler):
@@ -303,5 +303,5 @@ class HTTPS(StreamRequestHandler):
 				Buffer = PacketSequence(data,self.client_address[0])
 				self.exchange.send(Buffer)
 		except:
-			raise
+			pass
 
