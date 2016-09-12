@@ -359,6 +359,20 @@ class WPAD_Basic_407_Ans(Packet):
 		("CRLF",          "\r\n"),
 	])
 
+##### WEB Dav Stuff #####
+class WEBDAV_Options_Answer(Packet):
+	fields = OrderedDict([
+		("Code",          "HTTP/1.1 200 OK\r\n"),
+		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
+		("ServerType",    "Server: Microsoft-IIS/7.5\r\n"),
+		("Allow",         "Allow: GET,HEAD,POST,OPTIONS,TRACE\r\n"),
+		("Len",           "Content-Length: 0\r\n"),
+		("Keep-Alive:", "Keep-Alive: timeout=5, max=100\r\n"),
+		("Connection",    "Connection: Keep-Alive\r\n"),
+		("Content-Type",  "Content-Type: text/html\r\n"),
+		("CRLF",          "\r\n"),
+	])
+
 ##### FTP Packets #####
 class FTPPacket(Packet):
 	fields = OrderedDict([

