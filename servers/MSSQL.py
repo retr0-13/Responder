@@ -146,5 +146,6 @@ class MSSQL(BaseRequestHandler):
 				if data[0] == "\x11":  # NegoSSP Auth
 					ParseSQLHash(data,self.client_address[0])
 
-		except socket.timeout:
+		except:
 			self.request.close()
+                        pass
