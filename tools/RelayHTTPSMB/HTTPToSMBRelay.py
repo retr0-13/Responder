@@ -20,7 +20,7 @@ from Finger import RunFinger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 from socket import *
 
-__version__ = "0.2"
+__version__ = "0.4"
 
 def UserCallBack(op, value, dmy, parser):
     args=[]
