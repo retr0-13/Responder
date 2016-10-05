@@ -505,9 +505,9 @@ class SMBDCEPacketData(Packet):
 class SMBDCESVCCTLOpenManagerW(Packet):
     fields = OrderedDict([
         ("MachineNameRefID",     "\xb5\x97\xb9\xbc"),
-        ("MaxCount",             "\x0f\x00\x00\x00"),#need to calc.
+        ("MaxCount",             "\x0f\x00\x00\x00"),
         ("Offset",               "\x00\x00\x00\x00"),
-        ("ActualCount",          "\x0f\x00\x00\x00"),#need to calc.
+        ("ActualCount",          "\x0f\x00\x00\x00"),
         ("MachineName",          ""),
         ("MachineNameNull",      "\x00\x00"),
         ("DbPointer",            "\x00\x00\x00\x00"),

@@ -294,6 +294,7 @@ def RunPsExec(Host):
     ## First, check if user has admin privs on C$:    
     ## Tree Connect
     if data[8:10] == "\x73\x00":
+        print "[+] Authenticated.\n"
         GetSessionResponseFlags(data)#Verify if the target returned a guest session.
         head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x04\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
         t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\C$")
@@ -321,7 +322,7 @@ def RunPsExec(Host):
 
     ## NtCreateAndx
     if data[8:10] == "\x75\x00":
-        print "[+] Authenticated.\n[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
+        print "[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
 
     while True:
         if data[8:10] == "\x75\x00":
