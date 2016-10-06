@@ -20,7 +20,7 @@ from Finger import RunFinger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 from socket import *
 
-__version__ = "0.4"
+__version__ = "0.5"
 
 def UserCallBack(op, value, dmy, parser):
     args=[]
@@ -382,5 +382,6 @@ if __name__ == '__main__':
         main()
     except:
         raise
+
 
 
