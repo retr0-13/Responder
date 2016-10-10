@@ -89,32 +89,22 @@ def GrabSessionID(data):
     return SessionID
 
 def ParseSMBHash(data,client):  #Parse SMB NTLMSSP v1/v2
-	SecBlobLen = struct.unpack('<H',data[51:53])[0]
-	BccLen     = struct.unpack('<H',data[61:63])[0]
-
-	if SecBlobLen < 260:
-		SSPIStart    = data[75:]
-		LMhashLen    = struct.unpack('<H',data[89:91])[0]
-		LMhashOffset = struct.unpack('<H',data[91:93])[0]
-		LMHash       = SSPIStart[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
-		NthashLen    = struct.unpack('<H',data[97:99])[0]
-		NthashOffset = struct.unpack('<H',data[99:101])[0]
-	else:
-		SSPIStart    = data[79:]
-		LMhashLen    = struct.unpack('<H',data[93:95])[0]
-		LMhashOffset = struct.unpack('<H',data[95:97])[0]
-		LMHash       = SSPIStart[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
-		NthashLen    = struct.unpack('<H',data[101:103])[0]
-		NthashOffset = struct.unpack('<H',data[103:105])[0]
+        SSPIStart  = data.find('NTLMSSP')
+        SSPIString = data[SSPIStart:]
+	LMhashLen    = struct.unpack('<H',data[SSPIStart+14:SSPIStart+16])[0]
+	LMhashOffset = struct.unpack('<H',data[SSPIStart+16:SSPIStart+18])[0]
+	LMHash       = SSPIString[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
+	NthashLen    = struct.unpack('<H',data[SSPIStart+20:SSPIStart+22])[0]
+	NthashOffset = struct.unpack('<H',data[SSPIStart+24:SSPIStart+26])[0]
 
 	if NthashLen == 24:
-		SMBHash      = SSPIStart[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
-		DomainLen    = struct.unpack('<H',data[105:107])[0]
-		DomainOffset = struct.unpack('<H',data[107:109])[0]
-		Domain       = SSPIStart[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
-		UserLen      = struct.unpack('<H',data[113:115])[0]
-		UserOffset   = struct.unpack('<H',data[115:117])[0]
-		Username     = SSPIStart[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
+		SMBHash      = SSPIString[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
+		DomainLen    = struct.unpack('<H',SSPIString[30:32])[0]
+		DomainOffset = struct.unpack('<H',SSPIString[32:34])[0]
+		Domain       = SSPIString[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
+		UserLen      = struct.unpack('<H',SSPIString[38:40])[0]
+		UserOffset   = struct.unpack('<H',SSPIString[40:42])[0]
+		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
 		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, LMHash, SMBHash, settings.Config.NumChal)
 
 		SaveToDb({
@@ -127,13 +117,13 @@ def ParseSMBHash(data,client):  #Parse SMB NTLMSSP v1/v2
 		})
 
 	if NthashLen > 60:
-		SMBHash      = SSPIStart[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
-		DomainLen    = struct.unpack('<H',data[109:111])[0]
-		DomainOffset = struct.unpack('<H',data[111:113])[0]
-		Domain       = SSPIStart[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
-		UserLen      = struct.unpack('<H',data[117:119])[0]
-		UserOffset   = struct.unpack('<H',data[119:121])[0]
-		Username     = SSPIStart[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
+		SMBHash      = SSPIString[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
+		DomainLen    = struct.unpack('<H',SSPIString[30:32])[0]
+		DomainOffset = struct.unpack('<H',SSPIString[32:34])[0]
+		Domain       = SSPIString[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
+		UserLen      = struct.unpack('<H',SSPIString[38:40])[0]
+		UserOffset   = struct.unpack('<H',SSPIString[40:42])[0]
+		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
 		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, settings.Config.NumChal, SMBHash[:32], SMBHash[32:])
 
 		SaveToDb({
