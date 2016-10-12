@@ -20,7 +20,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3.2.8'
+__version__ = 'Responder 2.3.2.9'
 
 class Settings:
 	
@@ -67,6 +67,10 @@ class Settings:
 
 		if options.Interface is None and utils.IsOsX() is False:
 			print utils.color("Error: -I <if> mandatory option is missing", 1)
+			sys.exit(-1)
+
+		if options.Interface == "ALL" and options.OURIP == None:
+			print utils.color("Error: -i is missing.\nWhen using -I ALL you need to provide your current ip address", 1)
 			sys.exit(-1)
 
 		# Config parsing
@@ -175,8 +179,21 @@ class Settings:
 		if self.HtmlToInject is None:
 			self.HtmlToInject = ''
 
-                self.Bind_To = utils.FindLocalIP(self.Interface, self.OURIP)
-		self.IP_aton         = socket.inet_aton(self.Bind_To)
+                self.Bind_To         = utils.FindLocalIP(self.Interface, self.OURIP)
+
+                if self.Interface == "ALL":
+                	self.Bind_To_ALL  = True
+                else:
+                        self.Bind_To_ALL  = False
+
+
+		self.IP_aton              = socket.inet_aton(self.Bind_To)
+
+                if self.Interface == "ALL":
+                	self.IP_aton   = socket.inet_aton(self.OURIP)
+                else:
+                	self.IP_aton   = socket.inet_aton(self.Bind_To)
+
 		self.Os_version      = sys.platform
 
 		# Set up Challenge
