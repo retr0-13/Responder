@@ -272,6 +272,7 @@ class HTTP(BaseRequestHandler):
 
 				if Buffer and settings.Config.Force_WPAD_Auth == False:
 					self.request.send(Buffer)
+                                        self.request.close()
 					if settings.Config.Verbose:
 						print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
 
