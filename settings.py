@@ -186,9 +186,6 @@ class Settings:
                 else:
                         self.Bind_To_ALL  = False
 
-
-		self.IP_aton              = socket.inet_aton(self.Bind_To)
-
                 if self.Interface == "ALL":
                 	self.IP_aton   = socket.inet_aton(self.OURIP)
                 else:
