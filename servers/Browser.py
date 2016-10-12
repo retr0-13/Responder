@@ -20,8 +20,8 @@ from utils import *
 import struct
 
 
- def WorkstationFingerPrint(data):
- 	return {
+def WorkstationFingerPrint(data):
+	return {
  		"\x04\x00"    :"Windows 95",
 		"\x04\x0A"    :"Windows 98",
 		"\x04\x5A"    :"Windows ME",
