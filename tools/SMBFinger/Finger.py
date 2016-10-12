@@ -17,18 +17,9 @@
 import re,sys,socket,struct
 from socket import *
 from odict import OrderedDict
-import optparse
 
 __version__ = "0.3"
-
-parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
-
-parser.add_option('-i','--ip',             action="store",      help="Target IP address or class C", dest="TARGET", metavar="10.10.10.224", default=None)
-options, args = parser.parse_args()
-
-Timeout = 0.3
-Host = options.TARGET
-
+Timeout = 0.5
 class Packet():
     fields = OrderedDict([
     ])
@@ -130,6 +121,15 @@ class SMBNegoDataLanMan(Packet):
 
 #####################
 
+def color(txt, code = 1, modifier = 0):
+	return "\033[%d;3%dm%s\033[0m" % (modifier, code, txt)
+
+def IsSigningEnabled(data): 
+    if data[39] == "\x0f":
+        return True
+    else:
+        return False
+
 def atod(a): 
     return struct.unpack("!L",inet_aton(a))[0]
 
@@ -168,6 +168,7 @@ def DomainGrab(Host):
        buffer0 = longueur(packet0)+packet0
        s.send(buffer0)
        data = s.recv(2048)
+       s.close()
        if data[8:10] == "\x72\x00":
           return GetHostnameAndDomainName(data)
     except:
@@ -189,6 +190,7 @@ def SmbFinger(Host):
        buffer0 = longueur(packet0)+packet0
        s.send(buffer0)
        data = s.recv(2048)
+       signing = IsSigningEnabled(data)
        if data[8:10] == "\x72\x00":
           head = SMBHeader(cmd="\x73",flag1="\x18",flag2="\x17\xc8",uid="\x00\x00")
           t = SMBSessionFingerData()
@@ -197,8 +199,10 @@ def SmbFinger(Host):
           buffer1 = longueur(packet0)+packet0  
           s.send(buffer1) 
           data = s.recv(2048)
+          s.close()
        if data[8:10] == "\x73\x16":
-          return OsNameClientVersion(data)
+          OsVersion, ClientVersion = OsNameClientVersion(data)
+          return signing, OsVersion, ClientVersion
     except:
        pass
 ##################
@@ -212,13 +216,33 @@ def ShowResults(Host):
        return False
 
     try:
-       print "Retrieving information for %s..."%Host[0]
-       OsVer, LanManClient = SmbFinger(Host)
-       print "Os version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
        Hostname, DomainJoined = DomainGrab(Host)
-       print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
+       Signing, OsVer, LanManClient = SmbFinger(Host)
+       enabled  = color("SMB signing is mandatory. Choose another target", 1, 1)
+       disabled = color("SMB signing: False", 2, 1)
+       print color("Retrieving information for %s..."%Host[0], 8, 1)
+       print enabled if Signing else disabled
+       print color("Os version: '%s'"%(OsVer), 8, 3)
+       print color("Hostname: '%s'\nPart of the '%s' domain"%(Hostname, DomainJoined), 8, 3)
     except:
        pass
+
+def ShowSmallResults(Host):
+    s = socket(AF_INET, SOCK_STREAM)
+    try:
+       s.settimeout(Timeout)
+       s.connect(Host)
+    except:
+       return False
+
+    try:
+       Hostname, DomainJoined = DomainGrab(Host)
+       Signing, OsVer, LanManClient = SmbFinger(Host)
+       Message = color("\n[+] Client info: ['%s', domain: '%s', signing:'%s']"%(OsVer, DomainJoined, Signing),4,0)
+       return Message
+    except:
+       pass
+
 
 def RunFinger(Host):
     m = re.search("/", str(Host))
@@ -231,4 +255,3 @@ def RunFinger(Host):
     else:
        ShowResults((Host,445))   
 
-RunFinger(Host)
