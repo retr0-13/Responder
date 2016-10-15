@@ -15,18 +15,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import re,sys,socket,struct
+import datetime
 import multiprocessing
 from socket import *
 from odict import OrderedDict
 import optparse
 
-__version__ = "0.5"
+__version__ = "0.6"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
 parser.add_option('-i','--ip', action="store", help="Target IP address or class C", dest="TARGET", metavar="10.10.10.224", default=None)
-parser.add_option('-g','--grep', action="store_true", dest="Grep", default=False, help="Output it in grepable format")
+parser.add_option('-g','--grep', action="store_true", dest="Grep", default=False, help="Output in grepable format")
 options, args = parser.parse_args()
+
+if options.TARGET is None:
+    print "\n-i Mandatory option is missing, please provide a target or target range.\n"
+    parser.print_help()
+    exit(-1)
 
 Timeout = 2
 Host = options.TARGET
@@ -48,6 +54,12 @@ class Packet():
 def longueur(payload):
     length = struct.pack(">i", len(''.join(payload)))
     return length
+
+def GetBootTime(data):
+    Filetime = int(struct.unpack('<q',data)[0])
+    t = divmod(Filetime - 116444736000000000, 10000000)
+    time = datetime.datetime.fromtimestamp(t[0])
+    return time, time.strftime('%Y-%m-%d %H:%M:%S')
 
 class SMBHeader(Packet):
     fields = OrderedDict([
@@ -95,12 +107,9 @@ class SMBSessionFingerData(Packet):
         ("securitybloblength","\x4a\x00"),
         ("reserved2","\x00\x00\x00\x00"),
         ("capabilities", "\xd4\x00\x00\xa0"),
-        ("bcc1",""),
+        ("bcc1","\xb1\x00"), #hardcoded len here and hardcoded packet below, no calculation, faster.
         ("Data","\x60\x48\x06\x06\x2b\x06\x01\x05\x05\x02\xa0\x3e\x30\x3c\xa0\x0e\x30\x0c\x06\x0a\x2b\x06\x01\x04\x01\x82\x37\x02\x02\x0a\xa2\x2a\x04\x28\x4e\x54\x4c\x4d\x53\x53\x50\x00\x01\x00\x00\x00\x07\x82\x08\xa2\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05\x01\x28\x0a\x00\x00\x00\x0f\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x73\x00\x20\x00\x32\x00\x30\x00\x30\x00\x32\x00\x20\x00\x53\x00\x65\x00\x72\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\x50\x00\x61\x00\x63\x00\x6b\x00\x20\x00\x33\x00\x20\x00\x32\x00\x36\x00\x30\x00\x30\x00\x00\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x73\x00\x20\x00\x32\x00\x30\x00\x30\x00\x32\x00\x20\x00\x35\x00\x2e\x00\x31\x00\x00\x00\x00\x00"),
-
     ])
-    def calculate(self):
-        self.fields["bcc1"] = struct.pack("<i", len(str(self.fields["Data"])))[:2]
 
 ##Now Lanman
 class SMBHeaderLanMan(Packet):
@@ -119,17 +128,15 @@ class SMBHeaderLanMan(Packet):
         ("mid", "\x00\x00"),
     ])
 
+#We grab the domain and hostname from the negotiate protocol answer, since it is in a Lanman dialect format.
 class SMBNegoDataLanMan(Packet):
     fields = OrderedDict([
         ("Wordcount", "\x00"),
-        ("Bcc", "\x54\x00"),
+        ("Bcc", "\x0c\x00"),#hardcoded len here and hardcoded packet below, no calculation, faster.
         ("BuffType","\x02"),
         ("Dialect", "NT LM 0.12\x00"),
 
     ])
-    def calculate(self):
-        CalculateBCC = str(self.fields["BuffType"])+str(self.fields["Dialect"])
-        self.fields["Bcc"] = struct.pack("<h",len(CalculateBCC))
 
 #####################
 
@@ -149,6 +156,8 @@ def OsNameClientVersion(data):
 	try:
 		length = struct.unpack('<H',data[43:45])[0]
 		OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[47+length:].split('\x00\x00\x00')[:2]])
+                if OsVersion == "Unix":
+                   OsVersion = ClientVersion
 		return OsVersion, ClientVersion
 
 	except:
@@ -157,7 +166,8 @@ def OsNameClientVersion(data):
 def GetHostnameAndDomainName(data):
 	try:
 		DomainJoined, Hostname = tuple([e.replace('\x00','') for e in data[81:].split('\x00\x00\x00')[:2]])
-		return Hostname, DomainJoined
+                Time = GetBootTime(data[60:68])
+		return Hostname, DomainJoined, Time
 	except:
 	 	return "Could not get Hostname.", "Could not get Domain joined"
 
@@ -172,7 +182,6 @@ def DomainGrab(Host):
     try:
        h = SMBHeaderLanMan(cmd="\x72",mid="\x01\x00",flag1="\x00", flag2="\x00\x00")
        n = SMBNegoDataLanMan()
-       n.calculate()
        packet0 = str(h)+str(n)
        buffer0 = longueur(packet0)+packet0
        s.send(buffer0)
@@ -203,7 +212,6 @@ def SmbFinger(Host):
        if data[8:10] == "\x72\x00":
           head = SMBHeader(cmd="\x73",flag1="\x18",flag2="\x17\xc8",uid="\x00\x00")
           t = SMBSessionFingerData()
-          t.calculate() 
           packet0 = str(head)+str(t)
           buffer1 = longueur(packet0)+packet0  
           s.send(buffer1) 
@@ -214,6 +222,7 @@ def SmbFinger(Host):
           return signing, OsVersion, ClientVersion
     except:
        pass
+
 ##################
 #run it
 def ShowResults(Host):
@@ -226,9 +235,10 @@ def ShowResults(Host):
 
     try:
        print "Retrieving information for %s..."%Host[0]
-       Hostname, DomainJoined = DomainGrab(Host)
+       Hostname, DomainJoined, Time = DomainGrab(Host)
        Signing, OsVer, LanManClient = SmbFinger(Host)
-       print "SMB signing:", Signing 
+       print "SMB signing:", Signing
+       print "Server Time:", Time[1]
        print "Os version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
        print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
     except:
@@ -243,9 +253,9 @@ def ShowSmallResults(Host):
        return False
 
     try:
-       Hostname, DomainJoined = DomainGrab(Host)
+       Hostname, DomainJoined, Time = DomainGrab(Host)
        Signing, OsVer, LanManClient = SmbFinger(Host)
-       Message = "[%s: '%s', domain: '%s', signing:'%s']"%(Host[0], OsVer, DomainJoined, Signing)
+       Message = "['%s', Os:'%s', Domain:'%s', Signing:'%s', Time:'%s']"%(Host[0], OsVer, DomainJoined, Signing, Time[1])
        print Message
     except:
        pass
