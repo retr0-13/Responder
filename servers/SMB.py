@@ -255,7 +255,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
                                 ## Session Setup 2 answer SMBv2.
 				if data[16:18] == "\x01\x00" and data[4:5] == "\xfe":
               				head = SMB2Header(Cmd="\x01\x00", MessageId=GrabMessageID(data), PID="\xff\xfe\x00\x00", CreditCharge=GrabCreditCharged(data), Credits=GrabCreditRequested(data), SessionID=GrabSessionID(data),NTStatus="\x16\x00\x00\xc0")
-              				t = SMB2Session1Data()
+              				t = SMB2Session1Data(NTLMSSPNtServerChallenge=settings.Config.Challenge)
               				t.calculate()
               				packet1 = str(head)+str(t)
        				        buffer1 = struct.pack(">i", len(''.join(packet1)))+packet1  
@@ -392,7 +392,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 					self.request.send(Buffer)
 					data = self.request.recv(1024)
 
-		except socket.error:
+		except:
 			pass
 
 
