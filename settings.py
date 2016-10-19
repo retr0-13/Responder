@@ -222,12 +222,29 @@ class Settings:
 		self.AnalyzeLogger = logging.getLogger('Analyze Log')
 		self.AnalyzeLogger.addHandler(ALog_Handler)
                 
-                NetworkCard = subprocess.check_output(["ifconfig", "-a"])
-                DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
-                RoutingInfo = subprocess.check_output(["netstat", "-rn"])
-                Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
-                utils.DumpConfig(self.ResponderConfigDump, Message)
-                utils.DumpConfig(self.ResponderConfigDump,str(self))
+		try:
+			NetworkCard = subprocess.check_output(["ifconfig", "-a"])
+		except subprocess.CalledProcessError as ex:
+			NetworkCard = "Error fetching Network Interfaces:", ex
+			pass
+		try:
+			DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
+		except subprocess.CalledProcessError as ex:
+			DNS = "Error fetching DNS configuration:", ex
+			pass
+		try:
+			RoutingInfo = subprocess.check_output(["netstat", "-rn"])
+		except subprocess.CalledProcessError as ex:
+			RoutingInfo = "Error fetching Routing information:", ex
+			pass
+
+		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
+		try:
+			utils.DumpConfig(self.ResponderConfigDump, Message)
+			utils.DumpConfig(self.ResponderConfigDump,str(self))
+		except AttributeError as ex:
+			print "Missing Module:", ex
+			pass
 
 def init():
 	global Config
