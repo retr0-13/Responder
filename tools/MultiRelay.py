@@ -563,11 +563,12 @@ def RunShellCmd(data, s, clientIP, Host, Username, Domain):
             s.send(buffer1)
             data = s.recv(2048)
 
-class ThreadingTCPServer(ThreadingMixIn, TCPServer):
+class ThreadingTCPServer(TCPServer):
      def server_bind(self):
           TCPServer.server_bind(self)
 
 ThreadingTCPServer.allow_reuse_address = 1
+ThreadingTCPServer.daemon_threads = True
 
 def serve_thread_tcp(host, port, handler):
      try:
