@@ -140,7 +140,9 @@ def ConnectToTarget():
             s.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
             s.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 15)
             s.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 5)
-            s.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 5)
+            # macOS does not have TCP_KEEPIDLE
+            if sys.platform != 'darwin':
+                s.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 5)
             s.connect(Host)  
             return s
         except:
