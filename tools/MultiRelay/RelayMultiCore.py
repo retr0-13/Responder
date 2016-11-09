@@ -222,9 +222,9 @@ def ExtractSMBChallenge(data):
 
 def ExtractHTTPChallenge(data):
     SecBlobLen = struct.unpack("<h", data[43:45])[0]
-    if SecBlobLen < 255:
+    if SecBlobLen <= 257:
        Challenge = data[102:110]
-    if SecBlobLen > 255:
+    if SecBlobLen >= 258:
        Challenge = data[106:114]
     print "[+] Setting up HTTP relay with SMB challenge:", Challenge.encode("hex")
     return Challenge
