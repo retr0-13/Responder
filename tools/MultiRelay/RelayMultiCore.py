@@ -120,7 +120,7 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
                 print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
 
                 if User in UserToRelay or "ALL" in UserToRelay:
-                        print "[+] Username: %s is whitelisted, fowarding credentials."%(User)
+                        print "[+] Username: %s is whitelisted, forwarding credentials."%(User)
                         if ReadData("SMBRelay-Session.txt", client, User, HostName, Host[0], cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
@@ -142,7 +142,7 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
 		WriteData(Logs_Path+"logs/SMB-Relay-"+client+".txt", WriteHash, User)
                 print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if User in UserToRelay or "ALL" in UserToRelay:
-                        print "[+] Username: %s is whitelisted, fowarding credentials."%(User)
+                        print "[+] Username: %s is whitelisted, forwarding credentials."%(User)
                         if ReadData("SMBRelay-Session.txt", client, User, Domain, Host[0], cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
@@ -174,7 +174,7 @@ def ParseSMBHash(data,client, challenge,UserToRelay,Host):  #Parse SMB NTLMSSP v
 		WriteData(Logs_Path+"logs/SMB-Relay-SMB-"+client+".txt", WriteHash, Username)
                 print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if Username in UserToRelay or "ALL" in UserToRelay:
-                        print "[+] Username: %s is whitelisted, fowarding credentials."%(Username)
+                        print "[+] Username: %s is whitelisted, forwarding credentials."%(Username)
                         if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host[0], cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
@@ -196,7 +196,7 @@ def ParseSMBHash(data,client, challenge,UserToRelay,Host):  #Parse SMB NTLMSSP v
 		WriteData(Logs_Path+"logs/SMB-Relay-SMB-"+client+".txt", WriteHash, Username)
                 print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if Username in UserToRelay or "ALL" in UserToRelay:
-                        print "[+] Username: %s is whitelisted, fowarding credentials."%(Username)
+                        print "[+] Username: %s is whitelisted, forwarding credentials."%(Username)
                         if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host[0], cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
