@@ -36,7 +36,7 @@ from SMBFinger.Finger import RunFinger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from socket import *
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 def UserCallBack(op, value, dmy, parser):
     args=[]
@@ -446,6 +446,10 @@ def RunShellCmd(data, s, clientIP, Host, Username, Domain):
     if data[8:10] == "\x73\x8d":
         print "[+] Relay failed, STATUS_TRUSTED_RELATIONSHIP_FAILURE returned. Credentials are good, but user is probably not using the target domain name in his credentials.\n"
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
+        return False
+
+    if data[8:10] == "\x73\x5e":
+        print "[+] Relay failed, NO_LOGON_SERVER returned. Credentials are probably good, but the PDC is either offline or inexistant.\n"
         return False
 
     ## Ok, we are supposed to be authenticated here, so first check if user has admin privs on C$:    
