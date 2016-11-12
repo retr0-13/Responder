@@ -162,7 +162,11 @@ Options:
 	  -v, --verbose         Increase verbosity.
 	
 
+## Donation ##
 
+You can contribute to this project by donating to the following BTC address:
+
+1Pv9rZMNfy9hsW19eQhNGs22gY9sf6twjW
 
 
 ## Copyright ##
