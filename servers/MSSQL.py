@@ -52,7 +52,7 @@ class TDS_Login_Packet:
 		self.DatabaseName = data[8+DatabaseNameOff:8+DatabaseNameOff+DatabaseNameLen*2].replace('\x00', '')
 
 
-def ParseSQLHash(data, client):
+def ParseSQLHash(data, client, Challenge):
 	SSPIStart     = data[8:]
 
 	LMhashLen     = struct.unpack('<H',data[20:22])[0]
@@ -72,7 +72,7 @@ def ParseSQLHash(data, client):
 	User          = SSPIStart[UserOffset:UserOffset+UserLen].replace('\x00','')
 
 	if NthashLen == 24:
-		WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, LMHash, NTHash, settings.Config.NumChal)
+		WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, LMHash, NTHash, Challenge.encode('hex'))
 
 		SaveToDb({
 			'module': 'MSSQL', 
@@ -84,7 +84,7 @@ def ParseSQLHash(data, client):
 		})
 
 	if NthashLen > 60:
-		WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, settings.Config.NumChal, NTHash[:32], NTHash[32:])
+		WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, Challenge.encode('hex'), NTHash[:32], NTHash[32:])
 		
 		SaveToDb({
 			'module': 'MSSQL', 
@@ -126,7 +126,7 @@ class MSSQL(BaseRequestHandler):
 			while True:
 				data = self.request.recv(1024)
 				self.request.settimeout(0.1)
-
+                                Challenge = RandomChallenge()
 
 				if data[0] == "\x12":  # Pre-Login Message
 					Buffer = str(MSSQLPreLoginAnswer())
@@ -135,7 +135,7 @@ class MSSQL(BaseRequestHandler):
 
 				if data[0] == "\x10":  # NegoSSP
 					if re.search("NTLMSSP",data):
-						Packet = MSSQLNTLMChallengeAnswer(ServerChallenge=settings.Config.Challenge)
+						Packet = MSSQLNTLMChallengeAnswer(ServerChallenge=Challenge)
 						Packet.calculate()
 						Buffer = str(Packet)
 						self.request.send(Buffer)

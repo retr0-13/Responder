@@ -23,6 +23,17 @@ import time
 import settings
 import datetime
 
+def RandomChallenge():
+    if settings.Config.NumChal == "random":
+       from random import getrandbits
+       NumChal = '%0x' % getrandbits(16 * 4)
+       Challenge = ''
+       for i in range(0, len(NumChal),2):
+	   Challenge += NumChal[i:i+2].decode("hex")
+       return Challenge
+    else:
+       return settings.Config.Challenge
+
 def HTTPCurrentDate():
     Date = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
     return Date
