@@ -26,7 +26,7 @@ import datetime
 def RandomChallenge():
     if settings.Config.NumChal == "random":
        from random import getrandbits
-       NumChal = '%0x' % getrandbits(16 * 4)
+       NumChal = '%016x' % getrandbits(16 * 4)
        Challenge = ''
        for i in range(0, len(NumChal),2):
 	   Challenge += NumChal[i:i+2].decode("hex")
