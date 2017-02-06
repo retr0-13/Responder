@@ -309,31 +309,4 @@ class HTTP(BaseRequestHandler):
 		
 		except socket.error:
 			pass
-
-"""
-# HTTPS Server class
-class HTTPS(BaseRequestHandler):
-	#def setup(self):
-	#	self.exchange = self.request
-	#	self.rfile = socket._fileobject(self.request, "rb", self.rbufsize)
-	#	self.wfile = socket._fileobject(self.request, "wb", self.wbufsize)
-
-	#def handle(self):
-	#	try:
-     #                   Challenge = RandomChallenge()
-			data = self.exchange.recv(8092)
-			self.exchange.settimeout(0.5)
-			Buffer = WpadCustom(data,self.client_address[0])
-				
-			if Buffer and settings.Config.Force_WPAD_Auth == False:
-				self.exchange.send(Buffer)
-				if settings.Config.Verbose:
-					print text("[HTTPS] WPAD (no auth) file sent to %s" % self.client_address[0])
-
-			else:
-				Buffer = PacketSequence(data,self.client_address[0], Challenge)
-				self.exchange.send(Buffer)
-		except:
-			pass
-
-"""
+			
