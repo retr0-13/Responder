@@ -239,7 +239,7 @@ def main():
 
 		if settings.Config.SSL_On_Off:
 			from servers.HTTP import HTTPS
-			threads.append(Thread(target=serve_thread_SSL, args=('', 443, HTTPS,)))
+			threads.append(Thread(target=serve_thread_SSL, args=('', 443, HTTP,)))
 
 		if settings.Config.WPAD_On_Off:
 			from servers.HTTP_Proxy import HTTP_Proxy

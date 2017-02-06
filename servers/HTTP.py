@@ -310,16 +310,17 @@ class HTTP(BaseRequestHandler):
 		except socket.error:
 			pass
 
+"""
 # HTTPS Server class
-class HTTPS(StreamRequestHandler):
-	def setup(self):
-		self.exchange = self.request
-		self.rfile = socket._fileobject(self.request, "rb", self.rbufsize)
-		self.wfile = socket._fileobject(self.request, "wb", self.wbufsize)
+class HTTPS(BaseRequestHandler):
+	#def setup(self):
+	#	self.exchange = self.request
+	#	self.rfile = socket._fileobject(self.request, "rb", self.rbufsize)
+	#	self.wfile = socket._fileobject(self.request, "wb", self.wbufsize)
 
-	def handle(self):
-		try:
-                        Challenge = RandomChallenge()
+	#def handle(self):
+	#	try:
+     #                   Challenge = RandomChallenge()
 			data = self.exchange.recv(8092)
 			self.exchange.settimeout(0.5)
 			Buffer = WpadCustom(data,self.client_address[0])
@@ -335,3 +336,4 @@ class HTTPS(StreamRequestHandler):
 		except:
 			pass
 
+"""
