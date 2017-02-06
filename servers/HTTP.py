@@ -266,21 +266,47 @@ class HTTP(BaseRequestHandler):
 
 	def handle(self):
 		try:
-                        Challenge = RandomChallenge()
-                	for x in range(2):   
+			Challenge = RandomChallenge()
+			
+			while True:
 				self.request.settimeout(3)
-				data = self.request.recv(8092)
+				remaining = 10*1024*1024 #setting max recieve size
+				data = ''
+				while True:
+					buff = ''
+					buff = self.request.recv(8092)
+					if buff == '':
+						break
+					data += buff
+					remaining -= len(buff)
+					if remaining <= 0:
+						break
+					#check if we recieved the full header
+					if data.find('\r\n\r\n') != -1: 
+						#we did, now to check if there was anything else in the request besides the header
+						if data.find('Content-Length') == -1:
+							#request contains only header
+							break
+					else:
+						#searching for that content-length field in the header
+						for line in data.split('\r\n'):
+							if line.find('Content-Length') != -1:
+								line = line.strip()
+								remaining = int(line.split(':')[1].strip()) - len(data)
+			
+				#now the data variable has the full request
 				Buffer = WpadCustom(data, self.client_address[0])
 
 				if Buffer and settings.Config.Force_WPAD_Auth == False:
 					self.request.send(Buffer)
-                                        self.request.close()
+					self.request.close()
 					if settings.Config.Verbose:
 						print text("[HTTP] WPAD (no auth) file sent to %s" % self.client_address[0])
 
 				else:
 					Buffer = PacketSequence(data,self.client_address[0], Challenge)
 					self.request.send(Buffer)
+		
 		except socket.error:
 			pass
 
