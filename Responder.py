@@ -238,7 +238,7 @@ def main():
 			threads.append(Thread(target=serve_thread_tcp, args=('', 80, HTTP,)))
 
 		if settings.Config.SSL_On_Off:
-			from servers.HTTP import HTTPS
+			from servers.HTTP import HTTP
 			threads.append(Thread(target=serve_thread_SSL, args=('', 443, HTTP,)))
 
 		if settings.Config.WPAD_On_Off:
