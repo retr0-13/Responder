@@ -62,6 +62,9 @@ settings.Config.ExpandIPRanges()
 if settings.Config.AnalyzeMode:
 	print color('[i] Responder is in analyze mode. No NBT-NS, LLMNR, MDNS requests will be poisoned.', 3, 1)
 
+#Create the DB, before we start Responder.
+CreateResponderDb()
+
 class ThreadingUDPServer(ThreadingMixIn, UDPServer):
 	def server_bind(self):
 		if OsInterfaceIsSupported():
@@ -231,7 +234,7 @@ def main():
 
 		# Load Browser Listener
 		from servers.Browser import Browser
-		threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
+		#threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
 
 		if settings.Config.HTTP_On_Off:
 			from servers.HTTP import HTTP

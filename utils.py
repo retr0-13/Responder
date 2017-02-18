@@ -146,13 +146,16 @@ def DumpConfig(outfile, data):
 	with open(outfile,"a") as dump:
 		dump.write(data + '\n')
 
-def SaveToDb(result):
-	# Creating the DB if it doesn't exist
+def CreateResponderDb():
 	if not os.path.exists(settings.Config.DatabaseFile):
 		cursor = sqlite3.connect(settings.Config.DatabaseFile)
-		cursor.execute('CREATE TABLE responder (timestamp varchar(32), module varchar(16), type varchar(16), client varchar(32), hostname varchar(32), user varchar(32), cleartext varchar(128), hash varchar(512), fullhash varchar(512))')
+		cursor.execute('CREATE TABLE Poisoned (timestamp TEXT, Poisoner TEXT, SentToIp TEXT, ForName TEXT, AnalyzeMode TEXT)')
+		cursor.commit()
+		cursor.execute('CREATE TABLE responder (timestamp TEXT, module TEXT, type TEXT, client TEXT, hostname TEXT, user TEXT, cleartext TEXT, hash TEXT, fullhash TEXT)')
 		cursor.commit()
 		cursor.close()
+
+def SaveToDb(result):
 
 	for k in [ 'module', 'type', 'client', 'hostname', 'user', 'cleartext', 'hash', 'fullhash' ]:
 		if not k in result:
@@ -220,6 +223,23 @@ def SaveToDb(result):
 		text('[*] Skipping previously captured hash for %s' % result['user'])
 		cursor.execute("UPDATE responder SET timestamp=datetime('now') WHERE user=? AND client=?", (result['user'], result['client']))
 		cursor.commit()
+	cursor.close()
+
+def SavePoisonersToDb(result):
+
+	for k in [ 'Poisoner', 'SentToIp', 'ForName', 'AnalyzeMode' ]:
+		if not k in result:
+			result[k] = ''
+
+	cursor = sqlite3.connect(settings.Config.DatabaseFile)
+	cursor.text_factory = sqlite3.Binary  # We add a text factory to support different charsets
+	res = cursor.execute("SELECT COUNT(*) AS count FROM Poisoned WHERE Poisoner=? AND SentToIp=? AND ForName=? AND AnalyzeMode=?", (result['Poisoner'], result['SentToIp'], result['ForName'], result['AnalyzeMode']))
+	(count,) = res.fetchone()
+        
+	if not count:
+		cursor.execute("INSERT INTO Poisoned VALUES(datetime('now'), ?, ?, ?, ?)", (result['Poisoner'], result['SentToIp'], result['ForName'], result['AnalyzeMode']))
+		cursor.commit()
+
 	cursor.close()
 
 

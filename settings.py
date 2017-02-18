@@ -20,7 +20,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3.3.2'
+__version__ = 'Responder 2.3.3.4'
 
 class Settings:
 	
@@ -229,9 +229,12 @@ class Settings:
                 
 		try:
 			NetworkCard = subprocess.check_output(["ifconfig", "-a"])
-		except subprocess.CalledProcessError as ex:
-			NetworkCard = "Error fetching Network Interfaces:", ex
-			pass
+		except:
+			try:
+				NetworkCard = subprocess.check_output(["ip", "address", "show"])
+			except subprocess.CalledProcessError as ex:
+				NetworkCard = "Error fetching Network Interfaces:", ex
+				pass
 		try:
 			DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
 		except subprocess.CalledProcessError as ex:
@@ -239,9 +242,12 @@ class Settings:
 			pass
 		try:
 			RoutingInfo = subprocess.check_output(["netstat", "-rn"])
-		except subprocess.CalledProcessError as ex:
-			RoutingInfo = "Error fetching Routing information:", ex
-			pass
+		except:
+			try:
+				RoutingInfo = subprocess.check_output(["ip", "route", "show"])
+			except subprocess.CalledProcessError as ex:
+				RoutingInfo = "Error fetching Routing information:", ex
+				pass
 
 		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
 		try:

