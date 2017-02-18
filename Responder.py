@@ -234,7 +234,7 @@ def main():
 
 		# Load Browser Listener
 		from servers.Browser import Browser
-		#threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
+		threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
 
 		if settings.Config.HTTP_On_Off:
 			from servers.HTTP import HTTP
