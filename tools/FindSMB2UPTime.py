@@ -21,7 +21,7 @@ import struct
 import socket
 
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
-from packets import SMB2Header, SMB2Nego, SMB2NegoData
+from packets import SMBHeaderReq, SMB2NegoReq, SMB2NegoDataReq
 
 def GetBootTime(data):
     Filetime = int(struct.unpack('<q',data)[0])
@@ -43,8 +43,8 @@ def run(host):
     s.connect(host)  
     s.settimeout(5) 
 
-    Header = SMB2Header(Cmd="\x72",Flag1="\x18",Flag2="\x53\xc8")
-    Nego = SMB2Nego(Data = SMB2NegoData())
+    Header = SMBHeaderReq(Cmd="\x72",Flag1="\x18",Flag2="\x53\xc8")
+    Nego = SMB2NegoReq(Data = SMB2NegoDataReq())
     Nego.calculate()
 
     Packet = str(Header)+str(Nego)
