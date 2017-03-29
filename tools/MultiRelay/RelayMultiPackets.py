@@ -460,7 +460,42 @@ class SMBTreeConnectData(Packet):
         BccComplete    = str(self.fields["Passwd"])+str(self.fields["Path"])+str(self.fields["PathTerminator"])+str(self.fields["Service"])+str(self.fields["Terminator"])
         self.fields["Bcc"] = struct.pack("<i", len(BccComplete))[:2]
 
+class SMBTreeDisconnect(Packet):
+    fields = OrderedDict([
+        ("Wordcount", "\x00"),
+        ("Bcc","\x00\x00"),
+
+    ])
+
 class SMBNTCreateData(Packet):
+    fields = OrderedDict([
+        ("Wordcount",     "\x18"),
+        ("AndXCommand",   "\xff"),
+        ("Reserved",      "\x00" ),
+        ("Andxoffset",    "\x00\x00"),
+        ("Reserved2",     "\x00"),
+        ("FileNameLen",   "\x07\x00"),
+        ("CreateFlags",   "\x16\x00\x00\x00"),
+        ("RootFID",       "\x00\x00\x00\x00"),
+        ("AccessMask",    "\x9F\x01\x02\x00"),
+        ("AllocSize",     "\x00\x00\x00\x00\x00\x00\x00\x00"),
+        ("FileAttrib",    "\x00\x00\x00\x00"),
+        ("ShareAccess",   "\x03\x00\x00\x00"),
+        ("Disposition",   "\x01\x00\x00\x00"),   
+        ("CreateOptions", "\x40\x00\x40\x00"),
+        ("Impersonation", "\x02\x00\x00\x00"),
+        ("SecurityFlags", "\x01"),
+        ("Bcc",           "\x08\x00"),
+        ("FileName",      ""),
+        ("FileNameNull",  "\x00"),
+    ])
+
+    def calculate(self):
+        Data1= str(self.fields["FileName"])+str(self.fields["FileNameNull"])
+        self.fields["FileNameLen"] = struct.pack("<h",len(str(self.fields["FileName"])))
+        self.fields["Bcc"] = struct.pack("<h",len(Data1))
+
+class SMBNTCreateDataSVCCTL(Packet):
     fields = OrderedDict([
         ("Wordcount",     "\x18"),
         ("AndXCommand",   "\xff"),
@@ -488,6 +523,15 @@ class SMBNTCreateData(Packet):
         self.fields["FileNameLen"] = struct.pack("<h",len(str(self.fields["FileName"])))
         self.fields["Bcc"] = struct.pack("<h",len(Data1))
 
+class SMBLockingAndXResponse(Packet):
+    fields = OrderedDict([
+        ("Wordcount",     "\x02"),
+        ("AndXCommand",   "\xff"),
+        ("Reserved",      "\x00"),
+        ("Andxoffset",    "\x00\x00"),  
+        ("Bcc",           "\x00\x00"),
+    ])
+
 class SMBReadData(Packet):
     fields = OrderedDict([
         ("Wordcount",     "\x0a"),
@@ -513,6 +557,31 @@ class SMBWriteData(Packet):
         ("Wordcount",     "\x0e"),
         ("AndXCommand",   "\xff"),
         ("Reserved",      "\x00" ),
+        ("Andxoffset",    "\xde\xde"),
+        ("FID",           "\x06\x40"),
+        ("Offset",        "\x00\x00\x00\x00"),
+        ("TimeOut",       "\x00\x00\x00\x00"),
+        ("WriteMode",     "\x01\x00"),
+        ("Remaining",     "\x00\x00"),
+        ("DataLenHi",     "\x00\x00"),
+        ("DataLenLow",    "\xdc\x02"),
+        ("DataOffset",    "\x40\x00"),
+        ("HiOffset",      "\x00\x00\x00\x00"),   
+        ("Bcc",           "\xdc\x02"),
+        ("Padding",       "\x41"),
+        ("Data", ""),
+    ])
+
+    def calculate(self):
+
+        self.fields["DataLenLow"] = struct.pack("<H",len(str(self.fields["Data"])))
+        self.fields["Bcc"] = struct.pack("<H",len(str(self.fields["Data"])))
+
+class SMBDCERPCWriteData(Packet):
+    fields = OrderedDict([
+        ("Wordcount",     "\x0e"),
+        ("AndXCommand",   "\xff"),
+        ("Reserved",      "\x00" ),
         ("Andxoffset",    "\x00\x00"),
         ("FID",           "\x06\x40"),
         ("Offset",        "\xea\x03\x00\x00"),
@@ -531,6 +600,8 @@ class SMBWriteData(Packet):
         self.fields["Remaining"] = struct.pack("<h",len(str(self.fields["Data"])))
         self.fields["DataLenLow"] = struct.pack("<h",len(str(self.fields["Data"])))
         self.fields["Bcc"] = struct.pack("<h",len(str(self.fields["Data"])))
+
+
 
 class SMBTransDCERPC(Packet):
     fields = OrderedDict([
@@ -591,7 +662,7 @@ class SMBDCEData(Packet):
         ("DataRepresent",    "\x10\x00\x00\x00"),
         ("FragLen",          "\x2c\x02"),
         ("AuthLen",          "\x00\x00"),
-        ("CallID",           "\x00\x00\x00\x00"),
+        ("CallID",           "\x01\x00\x00\x00"),
         ("MaxTransFrag",     "\xd0\x16"),
         ("MaxRecvFrag",      "\xd0\x16"),
         ("GroupAssoc",       "\x00\x00\x00\x00"),
@@ -688,7 +759,7 @@ class SMBDCESVCCTLCreateService(Packet):
         ("TagID",                "\x00\x00\x00\x00"),
         ("Dependencies",         "\x00\x00\x00\x00"),
         ("DependenciesLen",      "\x00\x00\x00\x00"),
-        ("ServiceStartName",     "\x00\x00\x00\x00"),
+        ("ServiceStartUser",     "\x00\x00\x00\x00"),
         ("Password",             "\x00\x00\x00\x00"),
         ("PasswordLen",          "\x00\x00\x00\x00"), 
         ("Padding",              "\x00\x00"),
@@ -696,13 +767,13 @@ class SMBDCESVCCTLCreateService(Packet):
     ])
 
     def calculate(self):
-
-        WinTmpPath = "%WINDIR%\\Temp\\Results.txt"
-
-        ##Run the actual command via WMIC, no need to write/execute from a file.
-        self.fields["BinCMD"] = "WMIC process call create 'cmd /c ("+self.fields["BinCMD"]+") >"+WinTmpPath+"&exit'"
-
         BinDataLen = str(self.fields["BinCMD"])
+
+        #Padding
+        if len(str(self.fields["BinCMD"]))%2==0:
+           self.fields["LoadOrderGroup"] = "\x00\x00\x00\x00"
+        else:
+           self.fields["LoadOrderGroup"] = "\x00\x00"
 
         ## Calculate first
         self.fields["BinPathMaxCount"] = struct.pack("<i",len(BinDataLen)+1)
@@ -711,11 +782,11 @@ class SMBDCESVCCTLCreateService(Packet):
         self.fields["ActualCount"] = struct.pack("<i",len(str(self.fields["ServiceName"]))+1)
         self.fields["MaxCountRefID"] = struct.pack("<i",len(str(self.fields["DisplayNameID"]))+1)
         self.fields["ActualCountRefID"] = struct.pack("<i",len(str(self.fields["DisplayNameID"]))+1)
+
         ## Then convert to UTF-16LE
         self.fields["ServiceName"] = self.fields["ServiceName"].encode('utf-16le')
         self.fields["DisplayNameID"] = self.fields["DisplayNameID"].encode('utf-16le')
         self.fields["BinCMD"] = self.fields["BinCMD"].encode('utf-16le')
-
 
 class SMBDCESVCCTLOpenService(Packet):
     fields = OrderedDict([
@@ -766,6 +837,21 @@ class SMBDCESVCCTLQueryService(Packet):
     fields = OrderedDict([
         ("ContextHandle",        ""),
     ])
+
+class SMBDCEMimiKatzRPCCommand(Packet):
+    fields = OrderedDict([
+        ("ContextHandleLen",     "\x07\x00\x00\x00"),
+        ("ContextHandle",        "\x00\x00\x00\x00"),
+        ("ContextHandleLen2",    "\x07\x00\x00\x00"),
+        ("CMD",                  ""),
+        ("CMDEnd",               "\x00\x00"),
+    ])
+
+    def calculate(self):
+        self.fields["ContextHandleLen"] = struct.pack("<i",len(str(self.fields["CMD"]))+1)
+        self.fields["ContextHandleLen2"] = struct.pack("<i",len(str(self.fields["CMD"]))+1)
+        self.fields["CMD"] = self.fields["CMD"].encode('utf-16le')
+
 
 class OpenAndX(Packet):
     fields = OrderedDict([
@@ -819,6 +905,42 @@ class ReadRequestAndX(Packet):
 
     ])
 
+class SMBDCERPCReadRequestAndX(Packet):
+    fields = OrderedDict([
+        ("Wordcount",             "\x0C"),
+        ("AndXCommand",           "\xff"),
+        ("Reserved",              "\x00"),
+        ("AndXOffset",            "\xde\xde"),
+        ("FID",                   "\x02\x40"),
+        ("Offset",                "\x00\x00\x00\x00"),
+        ("MaxCountLow",           "\xb8\x10"),
+        ("MinCount",              "\xb8\x10"),
+        ("Timeout",               "\xff\xff\xff\xff"),
+        ("RemainingBytes",        "\x00\x00"),
+        ("HighOffset",            "\x00\x00\x00\x00"),
+        ("Bcc",                   "\x00\x00"),
+
+    ])
+
+class WriteRequestAndX(Packet):
+    fields = OrderedDict([
+        ("Wordcount",             "\x06"),
+        ("AndXCommand",           "\xff"),
+        ("Reserved",              "\x00"),
+        ("AndXOffset",            "\xde\xde"),
+        ("FID",                   "\x02\x40"),
+        ("Offset",                "\x00\x00\x00\x00"),
+        ("Reserved2",             "\xff\xff\xff\xff"),
+        ("WriteMode",             "\x00\x00"),
+        ("Remaining",             "\x00\x00"),
+        ("DataLenHi",             "\x00\x00"),
+        ("DataLenLow",            "\x0a\x00"),#actual Len
+        ("DataOffset",            "\x3f\x00"),
+        ("Bcc",                   "\x0a\x00"),
+        ("Padd",                  ""), 
+        ("Data",                  ""),
+
+    ])
 
 class CloseRequest(Packet):
     fields = OrderedDict([
@@ -987,4 +1109,5 @@ class SMBDCEWinRegSaveKey(Packet):
         #Recalculate again, in unicode this time.
         self.fields["FileSizeUnicode"] = struct.pack("<h",len(str(self.fields["File"]))+2)
         self.fields["MaxFileSizeUnicode"] = struct.pack("<h",len(str(self.fields["File"]))+2)
+
 
