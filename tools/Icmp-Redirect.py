@@ -214,7 +214,7 @@ def IcmpRedirectSock(DestinationIP):
 
 def FindWhatToDo(ToThisHost2):
     if ToThisHost2 != None:
-        Show_Help('Hit CRTL-C to kill this script')
+        Show_Help('Hit CTRL-C to kill this script')
         RunThisInLoop(ToThisHost, ToThisHost2,OURIP)
     if ToThisHost2 == None:
         Show_Help(MoreHelp)
