@@ -33,9 +33,13 @@ def GetBootTime(data):
 def IsDCVuln(t):
     Date = datetime.datetime(2014, 11, 17, 0, 30)
     if t[0] < Date:
-       print "DC is up since:", t[1]
-       print "This DC is vulnerable to MS14-068"
-    print "DC is up since:", t[1]
+       print "System is up since:", t[1]
+       print "This system may be vulnerable to MS14-068"
+    Date = datetime.datetime(2017, 03, 14, 0, 30)
+    if t[0] < Date:
+       print "System is up since:", t[1]
+       print "This system may be vulnerable to MS17-010"
+     print "DC is up since:", t[1]
 
 
 def run(host):
@@ -63,6 +67,6 @@ def run(host):
 
 if __name__ == "__main__":
     if len(sys.argv)<=1:
-        sys.exit('Usage: python '+sys.argv[0]+' DC-IP-address')
+        sys.exit('Usage: python '+sys.argv[0]+' System-IP-address')
     host = sys.argv[1],445
     run(host)
