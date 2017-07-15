@@ -268,8 +268,9 @@ def main():
 			threads.append(Thread(target=serve_thread_tcp, args=('', 88, KerbTCP,)))
 
 		if settings.Config.SQL_On_Off:
-			from servers.MSSQL import MSSQL
+			from servers.MSSQL import MSSQL, MSSQLBrowser
 			threads.append(Thread(target=serve_thread_tcp, args=('', 1433, MSSQL,)))
+			threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 1434, MSSQLBrowser,)))
 
 		if settings.Config.FTP_On_Off:
 			from servers.FTP import FTP
