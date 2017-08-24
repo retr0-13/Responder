@@ -27,7 +27,7 @@ def ParseSearch(data):
 	elif re.search(r'(?i)(objectClass0*.*supportedSASLMechanisms)', data):
 		return str(LDAPSearchSupportedMechanismsPacket(MessageIDASNStr=data[8:9],MessageIDASN2Str=data[8:9]))
 
-def ParseLDAPHash(data, client):
+def ParseLDAPHash(data, client, Challenge):
 	SSPIStart = data[42:]
 	LMhashLen = struct.unpack('<H',data[54:56])[0]
 
@@ -67,7 +67,7 @@ def ParseNTLM(data,client, Challenge):
 		NTLMChall.calculate()
 		return str(NTLMChall)
 	elif re.search('(NTLMSSP\x00\x03\x00\x00\x00)', data):
-		ParseLDAPHash(data,client)
+		ParseLDAPHash(data, client, Challenge)
 
 def ParseLDAPPacket(data, client, Challenge):
 	if data[1:2] == '\x84':
