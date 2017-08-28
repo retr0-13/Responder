@@ -39,7 +39,7 @@ def IsDCVuln(t):
     if t[0] < Date:
        print "System is up since:", t[1]
        print "This system may be vulnerable to MS17-010"
-     print "DC is up since:", t[1]
+    print "DC is up since:", t[1]
 
 
 def run(host):
