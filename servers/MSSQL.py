@@ -120,35 +120,32 @@ def ParseClearTextSQLPass(data, client):
 # MSSQL Server class
 class MSSQL(BaseRequestHandler):
 	def handle(self):
-		if settings.Config.Verbose:
-			print text("[MSSQL] Received connection from %s" % self.client_address[0])
 	
 		try:
-			while True:
-				data = self.request.recv(1024)
-				self.request.settimeout(0.1)
-                                Challenge = RandomChallenge()
+			data = self.request.recv(1024)
+			if settings.Config.Verbose:
+				print text("[MSSQL] Received connection from %s" % self.client_address[0])
 
-				if data[0] == "\x12":  # Pre-Login Message
-					Buffer = str(MSSQLPreLoginAnswer())
+			if data[0] == "\x12":  # Pre-Login Message
+				Buffer = str(MSSQLPreLoginAnswer())
+				self.request.send(Buffer)
+				data = self.request.recv(1024)
+
+			if data[0] == "\x10":  # NegoSSP
+				if re.search("NTLMSSP",data):
+                                        Challenge = RandomChallenge()
+					Packet = MSSQLNTLMChallengeAnswer(ServerChallenge=Challenge)
+					Packet.calculate()
+					Buffer = str(Packet)
 					self.request.send(Buffer)
 					data = self.request.recv(1024)
+				else:
+					ParseClearTextSQLPass(data,self.client_address[0])
 
-				if data[0] == "\x10":  # NegoSSP
-					if re.search("NTLMSSP",data):
-						Packet = MSSQLNTLMChallengeAnswer(ServerChallenge=Challenge)
-						Packet.calculate()
-						Buffer = str(Packet)
-						self.request.send(Buffer)
-						data = self.request.recv(1024)
-					else:
-						ParseClearTextSQLPass(data,self.client_address[0])
-
-				if data[0] == "\x11":  # NegoSSP Auth
-					ParseSQLHash(data,self.client_address[0])
+			if data[0] == "\x11":  # NegoSSP Auth
+				ParseSQLHash(data,self.client_address[0],Challenge)
 
 		except:
-			self.request.close()
                         pass
 
 # MSSQL Server Browser class
