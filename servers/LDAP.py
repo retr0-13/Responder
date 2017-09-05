@@ -102,19 +102,37 @@ def ParseLDAPPacket(data, client, Challenge):
 		elif Operation == "\x63":
 			Buffer = ParseSearch(data)
 			return Buffer
+
 		elif settings.Config.Verbose:
 			print text('[LDAP] Operation not supported')
+
+	if data[5:6] == '\x60':
+                UserLen = struct.unpack("<b",data[11:12])[0]
+                UserString = data[12:12+UserLen]
+                PassLen = struct.unpack("<b",data[12+UserLen+1:12+UserLen+2])[0]
+                PassStr = data[12+UserLen+2:12+UserLen+3+PassLen]
+                if settings.Config.Verbose:
+			print text('[LDAP] Attempting to parse an old simple Bind request.')
+		SaveToDb({
+			'module': 'LDAP',
+			'type': 'Cleartext',
+			'client': client,
+			'user': UserString,
+			'cleartext': PassStr,
+			'fullhash': UserString+':'+PassStr,
+			})
 
 class LDAP(BaseRequestHandler):
 	def handle(self):
 		try:
-			while True:
-				self.request.settimeout(0.5)
-				data = self.request.recv(8092)
-                                Challenge = RandomChallenge()
+			self.request.settimeout(0.4)
+			data = self.request.recv(8092)
+                        Challenge = RandomChallenge()
+                        for x in range(5):
 				Buffer = ParseLDAPPacket(data,self.client_address[0], Challenge)
-
 				if Buffer:
 					self.request.send(Buffer)
-		except socket.timeout:
-			pass
+				data = self.request.recv(8092)
+		except:
+                        pass
+
