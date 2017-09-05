@@ -27,37 +27,53 @@ def ParseSearch(data):
 	elif re.search(r'(?i)(objectClass0*.*supportedSASLMechanisms)', data):
 		return str(LDAPSearchSupportedMechanismsPacket(MessageIDASNStr=data[8:9],MessageIDASN2Str=data[8:9]))
 
-def ParseLDAPHash(data, client, Challenge):
-	SSPIStart = data[42:]
-	LMhashLen = struct.unpack('<H',data[54:56])[0]
+def ParseLDAPHash(data,client, Challenge):  #Parse LDAP NTLMSSP v1/v2
+        SSPIStart  = data.find('NTLMSSP')
+        SSPIString = data[SSPIStart:]
+	LMhashLen    = struct.unpack('<H',data[SSPIStart+14:SSPIStart+16])[0]
+	LMhashOffset = struct.unpack('<H',data[SSPIStart+16:SSPIStart+18])[0]
+	LMHash       = SSPIString[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
+	NthashLen    = struct.unpack('<H',data[SSPIStart+20:SSPIStart+22])[0]
+	NthashOffset = struct.unpack('<H',data[SSPIStart+24:SSPIStart+26])[0]
 
-	if LMhashLen > 10:
-		LMhashOffset = struct.unpack('<H',data[58:60])[0]
-		LMHash       = SSPIStart[LMhashOffset:LMhashOffset+LMhashLen].encode("hex").upper()
-		
-		NthashLen    = struct.unpack('<H',data[64:66])[0]
-		NthashOffset = struct.unpack('<H',data[66:68])[0]
-		NtHash       = SSPIStart[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
-		
-		DomainLen    = struct.unpack('<H',data[72:74])[0]
-		DomainOffset = struct.unpack('<H',data[74:76])[0]
-		Domain       = SSPIStart[DomainOffset:DomainOffset+DomainLen].replace('\x00','')
-		
-		UserLen      = struct.unpack('<H',data[80:82])[0]
-		UserOffset   = struct.unpack('<H',data[82:84])[0]
-		User         = SSPIStart[UserOffset:UserOffset+UserLen].replace('\x00','')
-
-		WriteHash    = User + "::" + Domain + ":" + LMHash + ":" + NtHash + ":" + Challenge.encode('hex')
+	if NthashLen == 24:
+		SMBHash      = SSPIString[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
+		DomainLen    = struct.unpack('<H',SSPIString[30:32])[0]
+		DomainOffset = struct.unpack('<H',SSPIString[32:34])[0]
+		Domain       = SSPIString[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
+		UserLen      = struct.unpack('<H',SSPIString[38:40])[0]
+		UserOffset   = struct.unpack('<H',SSPIString[40:42])[0]
+		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
+		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, LMHash, SMBHash, Challenge.encode('hex'))
 
 		SaveToDb({
-			'module': 'LDAP',
-			'type': 'NTLMv1',
-			'client': client,
-			'user': Domain+'\\'+User,
-			'hash': NtHash,
+			'module': 'LDAP', 
+			'type': 'NTLMv1-SSP', 
+			'client': client, 
+			'user': Domain+'\\'+Username, 
+			'hash': SMBHash, 
 			'fullhash': WriteHash,
 		})
-	
+
+	if NthashLen > 60:
+		SMBHash      = SSPIString[NthashOffset:NthashOffset+NthashLen].encode("hex").upper()
+		DomainLen    = struct.unpack('<H',SSPIString[30:32])[0]
+		DomainOffset = struct.unpack('<H',SSPIString[32:34])[0]
+		Domain       = SSPIString[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
+		UserLen      = struct.unpack('<H',SSPIString[38:40])[0]
+		UserOffset   = struct.unpack('<H',SSPIString[40:42])[0]
+		Username     = SSPIString[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
+		WriteHash    = '%s::%s:%s:%s:%s' % (Username, Domain, Challenge.encode('hex'), SMBHash[:32], SMBHash[32:])
+
+		SaveToDb({
+			'module': 'LDAP', 
+			'type': 'NTLMv2', 
+			'client': client, 
+			'user': Domain+'\\'+Username, 
+			'hash': SMBHash, 
+			'fullhash': WriteHash,
+		})
+
 	if LMhashLen < 2 and settings.Config.Verbose:
 		print text("[LDAP] Ignoring anonymous NTLM authentication")
 
