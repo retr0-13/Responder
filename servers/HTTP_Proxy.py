@@ -52,9 +52,9 @@ def InjectData(data, client, req_uri):
 				return RespondWithFile(client, settings.Config.Html_Filename)
 
 			Len = ''.join(re.findall(r'(?<=Content-Length: )[^\r\n]*', Headers))
-			HasBody = re.findall(r'(<body[^>]*>)', Content)
+			HasBody = re.findall(r'(<body[^>]*>)', Content, re.IGNORECASE)
 
-			if HasBody and len(settings.Config.HtmlToInject) > 2:
+			if HasBody and len(settings.Config.HtmlToInject) > 2 and not req_uri.endswith('.js'):
 				if settings.Config.Verbose:
 					print text("[PROXY] Injecting into HTTP Response: %s" % color(settings.Config.HtmlToInject, 3, 1))
 
