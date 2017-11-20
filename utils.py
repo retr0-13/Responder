@@ -293,7 +293,7 @@ def banner():
 	print "\n           \033[1;33mNBT-NS, LLMNR & MDNS %s\033[0m" % settings.__version__
 	print ""
 	print "  Author: Laurent Gaffie (laurent.gaffie@gmail.com)"
-	print "  To kill this script hit CRTL-C"
+	print "  To kill this script hit CTRL-C"
 	print ""
 
 
