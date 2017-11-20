@@ -20,6 +20,7 @@ import multiprocessing
 from socket import *
 from odict import OrderedDict
 import optparse
+from RunFingerPackets import *
 
 __version__ = "0.7"
 
@@ -61,82 +62,6 @@ def GetBootTime(data):
     time = datetime.datetime.fromtimestamp(t[0])
     return time, time.strftime('%Y-%m-%d %H:%M:%S')
 
-class SMBHeader(Packet):
-    fields = OrderedDict([
-        ("proto",      "\xff\x53\x4d\x42"),
-        ("cmd",        "\x72"),
-        ("error-code", "\x00\x00\x00\x00" ),
-        ("flag1",      "\x00"),
-        ("flag2",      "\x00\x00"),
-        ("pidhigh",    "\x00\x00"),
-        ("signature",  "\x00\x00\x00\x00\x00\x00\x00\x00"),
-        ("reserved",   "\x00\x00"),
-        ("tid",        "\x00\x00"),
-        ("pid",        "\x00\x00"),
-        ("uid",        "\x00\x00"),
-        ("mid",        "\x00\x00"),
-    ])
-
-class SMBNego(Packet):
-    fields = OrderedDict([
-        ("Wordcount", "\x00"),
-        ("Bcc", "\x62\x00"),
-        ("Data", "")
-    ])
-    
-    def calculate(self):
-        self.fields["Bcc"] = struct.pack("<h",len(str(self.fields["Data"])))
-
-class SMBNegoData(Packet):
-    fields = OrderedDict([
-        ("BuffType","\x02"),
-        ("Dialect", "NT LM 0.12\x00"),
-    ])
-
-
-class SMBSessionFingerData(Packet):
-    fields = OrderedDict([
-        ("wordcount", "\x0c"),
-        ("AndXCommand", "\xff"),
-        ("reserved","\x00" ),
-        ("andxoffset", "\x00\x00"),
-        ("maxbuff","\x04\x11"),
-        ("maxmpx", "\x32\x00"),
-        ("vcnum","\x00\x00"),
-        ("sessionkey", "\x00\x00\x00\x00"),
-        ("securitybloblength","\x4a\x00"),
-        ("reserved2","\x00\x00\x00\x00"),
-        ("capabilities", "\xd4\x00\x00\xa0"),
-        ("bcc1","\xb1\x00"), #hardcoded len here and hardcoded packet below, no calculation, faster.
-        ("Data","\x60\x48\x06\x06\x2b\x06\x01\x05\x05\x02\xa0\x3e\x30\x3c\xa0\x0e\x30\x0c\x06\x0a\x2b\x06\x01\x04\x01\x82\x37\x02\x02\x0a\xa2\x2a\x04\x28\x4e\x54\x4c\x4d\x53\x53\x50\x00\x01\x00\x00\x00\x07\x82\x08\xa2\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05\x01\x28\x0a\x00\x00\x00\x0f\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x73\x00\x20\x00\x32\x00\x30\x00\x30\x00\x32\x00\x20\x00\x53\x00\x65\x00\x72\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\x50\x00\x61\x00\x63\x00\x6b\x00\x20\x00\x33\x00\x20\x00\x32\x00\x36\x00\x30\x00\x30\x00\x00\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x73\x00\x20\x00\x32\x00\x30\x00\x30\x00\x32\x00\x20\x00\x35\x00\x2e\x00\x31\x00\x00\x00\x00\x00"),
-    ])
-
-##Now Lanman
-class SMBHeaderLanMan(Packet):
-    fields = OrderedDict([
-        ("proto", "\xff\x53\x4d\x42"),
-        ("cmd", "\x72"),
-        ("error-code", "\x00\x00\x00\x00" ),
-        ("flag1", "\x08"),
-        ("flag2", "\x01\xc8"),
-        ("pidhigh", "\x00\x00"),
-        ("signature", "\x00\x00\x00\x00\x00\x00\x00\x00"),
-        ("reserved", "\x00\x00"),
-        ("tid", "\x00\x00"),
-        ("pid", "\x3c\x1b"),
-        ("uid", "\x00\x00"),
-        ("mid", "\x00\x00"),
-    ])
-
-#We grab the domain and hostname from the negotiate protocol answer, since it is in a Lanman dialect format.
-class SMBNegoDataLanMan(Packet):
-    fields = OrderedDict([
-        ("Wordcount", "\x00"),
-        ("Bcc", "\x0c\x00"),#hardcoded len here and hardcoded packet below, no calculation, faster.
-        ("BuffType","\x02"),
-        ("Dialect", "NT LM 0.12\x00"),
-
-    ])
 
 #####################
 
@@ -181,7 +106,6 @@ def DomainGrab(Host):
        s.settimeout(Timeout)
        s.connect(Host)
     except:
-       print "Host down or port close, skipping"
        pass
     try:
        h = SMBHeaderLanMan(cmd="\x72",mid="\x01\x00",flag1="\x00", flag2="\x00\x00")
@@ -202,7 +126,6 @@ def SmbFinger(Host):
        s.settimeout(Timeout)
        s.connect(Host)
     except:
-       print "Host down or port close, skipping"
        pass
     try:     
        h = SMBHeader(cmd="\x72",flag1="\x18",flag2="\x53\xc8")
@@ -220,28 +143,92 @@ def SmbFinger(Host):
           buffer1 = longueur(packet0)+packet0  
           s.send(buffer1) 
           data = s.recv(2048)
-          s.close()
        if data[8:10] == "\x73\x16":
           OsVersion, ClientVersion = OsNameClientVersion(data)
           return signing, OsVersion, ClientVersion
     except:
        pass
 
-##################
-#run it
-def ShowResults(Host):
+
+def SmbNullSession(Host):
     s = socket(AF_INET, SOCK_STREAM)
     try:
        s.settimeout(Timeout)
        s.connect(Host)
     except:
-       return False
+       pass 
 
+    try:     
+       h = SMBHeader(cmd="\x72",flag1="\x18", flag2="\x53\xc8")
+       n = SMBNego(Data = SMBNegoData())
+       n.calculate()
+       packet0 = str(h)+str(n)
+       buffer0 = longueur(packet0)+packet0
+       s.send(buffer0)
+       data = s.recv(2048)
+       try:
+           if data[8:10] == "\x72\x00":
+              head = SMBHeader(cmd="\x73",flag1="\x18", flag2="\x53\xc8")
+              t = SMBSessionData()
+              t.calculate()
+              final = t 
+              packet1 = str(head)+str(final)
+              buffer1 = longueur(packet1)+packet1
+              s.send(buffer1)
+              data = s.recv(2048)
+
+           if data[8:10] == "\x73\x16":
+              head = SMBHeader(cmd="\x73",flag1="\x18", flag2="\x17\xc8",uid=data[32:34],mid="\x80\x00")
+              t = SMBSession2()
+              t.calculate()
+              final = t 
+              packet1 = str(head)+str(final)
+              buffer1 = longueur(packet1)+packet1
+              s.send(buffer1)
+              data = s.recv(2048)
+
+           if data[8:10] == "\x73\x00":
+              head = SMBHeader(cmd="\x75",flag1="\x18", flag2="\x07\xc8",uid=data[32:34],mid="\xc0\x00")
+              t = SMBTreeConnectData(Path="\\\\"+Host[0]+"\\IPC$")
+              t.calculate()
+              packet1 = str(head)+str(t)
+              buffer1 = longueur(packet1)+packet1  
+              s.send(buffer1)
+              data = s.recv(2048)
+
+           if data[8:10] == "\x75\x00":
+              global Guest
+              Guest = True
+              head = SMBHeader(cmd="\x25",flag1="\x18", flag2="\x07\xc8",uid=data[32:34],tid=data[28:30],mid="\xc0\x00")
+              t = SMBTransRAPData()
+              t.calculate()
+              packet1 = str(head)+str(t)
+              buffer1 = longueur(packet1)+packet1  
+              s.send(buffer1)
+              data = s.recv(2048)
+              if data[9:13] == "\x05\x02\x00\xc0":
+                 return Guest, True
+              else:
+                 return Guest, False
+           else:
+              return False, False
+       except Exception:
+           pass
+
+    except:
+       pass
+
+##################
+#run it
+def ShowResults(Host):
     try:
-       print "Retrieving information for %s..."%Host[0]
        Hostname, DomainJoined, Time = DomainGrab(Host)
        Signing, OsVer, LanManClient = SmbFinger(Host)
+       NullSess, Ms17010 = SmbNullSession(Host)
+       print "Retrieving information for %s..."%Host[0]
        print "SMB signing:", Signing
+       print "Null Sessions Allowed:", NullSess
+       print "Vulnerable to MS10-010:", Ms17010
        print "Server Time:", Time[1]
        print "Os version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
        print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
@@ -259,9 +246,11 @@ def ShowSmallResults(Host):
     try:
        Hostname, DomainJoined, Time = DomainGrab(Host)
        Signing, OsVer, LanManClient = SmbFinger(Host)
-       Message = "['%s', Os:'%s', Domain:'%s', Signing:'%s', Time:'%s']"%(Host[0], OsVer, DomainJoined, Signing, Time[1])
+       NullSess, Ms17010 = SmbNullSession(Host)
+       Message = "['%s', Os:'%s', Domain:'%s', Signing:'%s', Time:'%s', Null Session: %s, MS17-010: %s]"%(Host[0], OsVer, DomainJoined, Signing, Time[1],NullSess, Ms17010)
        print Message
     except:
+       raise
        pass
 
 def IsGrepable():
