@@ -228,9 +228,9 @@ def ShowResults(Host):
        print "Retrieving information for %s..."%Host[0]
        print "SMB signing:", Signing
        print "Null Sessions Allowed:", NullSess
-       print "Vulnerable to MS10-010:", Ms17010
+       print "Vulnerable to MS17-010:", Ms17010
        print "Server Time:", Time[1]
-       print "Os version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
+       print "OS version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
        print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
     except:
        pass
