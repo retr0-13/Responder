@@ -294,6 +294,8 @@ class HTTP(BaseRequestHandler):
 								line = line.strip()
 								remaining = int(line.split(':')[1].strip()) - len(data)
 			
+				if data == "":
+					break
 				#now the data variable has the full request
 				Buffer = WpadCustom(data, self.client_address[0])
 
