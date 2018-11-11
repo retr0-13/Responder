@@ -192,7 +192,6 @@ def PacketSequence(data, client, Challenge):
 
 	if NTLM_Auth:
 		Packet_NTLM = b64decode(''.join(NTLM_Auth))[8:9]
-                print "Challenge 2:", Challenge.encode('hex')
 		if Packet_NTLM == "\x01":
 			GrabURL(data, client)
 			GrabReferer(data, client)
