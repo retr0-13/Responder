@@ -1,7 +1,3 @@
-           if options.grep_output:
-               func = ShowSmallResults
-            else:
-                func = ShowResults
 #!/usr/bin/env python
 # This file is part of Responder, a network take-over set of tools 
 # created and maintained by Laurent Gaffie.
@@ -42,6 +38,7 @@ if options.TARGET is None:
 
 Timeout = 2
 Host = options.TARGET
+MS17010Check = options.all
 
 class Packet():
     fields = OrderedDict([
@@ -210,14 +207,22 @@ def ShowResults(Host):
        Hostname, DomainJoined, Time = DomainGrab(Host)
        Signing, OsVer, LanManClient = SmbFinger(Host)
        NullSess = check_smb_null_session(Host)
-       Ms17010 = check_ms17_010(Host)
-       print ("Retrieving information for %s..."%Host[0])
-       print ("SMB signing:", Signing)
-       print ("Null Sessions Allowed:", NullSess)
-       print ("Vulnerable to MS17-010:", Ms17010)
-       print ("Server Time:", Time[1])
-       print ("OS version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient))
-       print ("Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined))
+       if MS17010Check:
+          Ms17010 = check_ms17_010(Host)
+          print "Retrieving information for %s..."%Host[0]
+          print "SMB signing:", Signing
+          print "Null Sessions Allowed:", NullSess
+          print "Vulnerable to MS17-010:", Ms17010
+          print "Server Time:", Time[1]
+          print "OS version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
+          print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
+       else:
+          print "Retrieving information for %s..."%Host[0]
+          print "SMB signing:", Signing
+          print "Null Sessions Allowed:", NullSess
+          print "Server Time:", Time[1]
+          print "OS version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)
+          print "Machine Hostname: '%s'\nThis machine is part of the '%s' domain\n"%(Hostname, DomainJoined)
     except:
        pass
 
@@ -230,12 +235,18 @@ def ShowSmallResults(Host):
        return False
 
     try:
-       Hostname, DomainJoined, Time = DomainGrab(Host)
-       Signing, OsVer, LanManClient = SmbFinger(Host)
-       NullSess = check_smb_null_session(Host)
-       Ms17010 = check_ms17_010(Host)
-       message_ms17010 = ", MS17-010: {}".format(Ms17010)
-       print("['{}', Os:'{}', Domain:'{}', Signing:'{}', Time:'{}', Null Session: {} {}".format(Host[0], OsVer, DomainJoined, Signing, Time[1],NullSess, message_ms17010))
+       if MS17010Check:
+          Hostname, DomainJoined, Time = DomainGrab(Host)
+          Signing, OsVer, LanManClient = SmbFinger(Host)
+          NullSess = check_smb_null_session(Host)
+          Ms17010 = check_ms17_010(Host)
+          message_ms17010 = ", MS17-010: {}".format(Ms17010)
+          print("['{}', Os:'{}', Domain:'{}', Signing:'{}', Time:'{}', Null Session: {} {}".format(Host[0], OsVer, DomainJoined, Signing, Time[1],NullSess, message_ms17010))
+       else:
+          Hostname, DomainJoined, Time = DomainGrab(Host)
+          Signing, OsVer, LanManClient = SmbFinger(Host)
+          NullSess = check_smb_null_session(Host)
+          print("['{}', Os:'{}', Domain:'{}', Signing:'{}', Time:'{}', Null Session: {}".format(Host[0], OsVer, DomainJoined, Signing, Time[1],NullSess))
     except Exception as err:
         pass
 
