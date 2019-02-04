@@ -25,12 +25,18 @@ from packets import SMBHeaderReq, SMB2NegoReq, SMB2NegoDataReq
 
 def GetBootTime(data):
     Filetime = int(struct.unpack('<q',data)[0])
+    if Filetime == 0:  # server may not disclose this info
+        return 0, "Unknown"
     t = divmod(Filetime - 116444736000000000, 10000000)
     time = datetime.datetime.fromtimestamp(t[0])
     return time, time.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def IsDCVuln(t, host):
+    if t[0] == 0:
+        print "Server", host[0], "did not disclose its boot time"
+        return
+    
     Date = datetime.datetime(2014, 11, 17, 0, 30)
     if t[0] < Date:
        print "System is up since:", t[1]
