@@ -135,7 +135,7 @@ def FindLocalIP(Iface, OURIP):
 			return OURIP
 		elif OURIP == None:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			s.setsockopt(socket.SOL_SOCKET, 25, Iface+'\0')
+			s.setsockopt(socket.SOL_SOCKET, 25, str(Iface+'\0').encode('utf-8'))
 			s.connect(("127.0.0.1",9))#RFC 863
 			ret = s.getsockname()[0]
 			s.close()
