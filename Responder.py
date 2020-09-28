@@ -250,13 +250,13 @@ def main():
 		from poisoners.LLMNR import LLMNR
 		from poisoners.NBTNS import NBTNS
 		from poisoners.MDNS import MDNS
-		threads.append(Thread(target=serve_LLMNR_poisoner, args=(settings.Config.Bind_To, 5355, LLMNR,)))
-		threads.append(Thread(target=serve_MDNS_poisoner,  args=(settings.Config.Bind_To, 5353, MDNS,)))
-		threads.append(Thread(target=serve_NBTNS_poisoner, args=(settings.Config.Bind_To, 137,  NBTNS,)))
+		threads.append(Thread(target=serve_LLMNR_poisoner, args=('', 5355, LLMNR,)))
+		threads.append(Thread(target=serve_MDNS_poisoner,  args=('', 5353, MDNS,)))
+		threads.append(Thread(target=serve_NBTNS_poisoner, args=('', 137,  NBTNS,)))
 
 		# Load Browser Listener
 		from servers.Browser import Browser
-		threads.append(Thread(target=serve_thread_udp_broadcast, args=(settings.Config.Bind_To, 138,  Browser,)))
+		threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 138,  Browser,)))
 
 		if settings.Config.HTTP_On_Off:
 			from servers.HTTP import HTTP
@@ -290,7 +290,7 @@ def main():
 
 		if settings.Config.Krb_On_Off:
 			from servers.Kerberos import KerbTCP, KerbUDP
-			threads.append(Thread(target=serve_thread_udp, args=(settings.Config.Bind_To, 88, KerbUDP,)))
+			threads.append(Thread(target=serve_thread_udp, args=('', 88, KerbUDP,)))
 			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 88, KerbTCP,)))
 
 		if settings.Config.SQL_On_Off:
@@ -321,7 +321,7 @@ def main():
 
 		if settings.Config.DNS_On_Off:
 			from servers.DNS import DNS, DNSTCP
-			threads.append(Thread(target=serve_thread_udp, args=(settings.Config.Bind_To, 53, DNS,)))
+			threads.append(Thread(target=serve_thread_udp, args=('', 53, DNS,)))
 			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 53, DNSTCP,)))
 
 		for thread in threads:
