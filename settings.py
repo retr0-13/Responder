@@ -218,7 +218,7 @@ class Settings:
 				for i in range(0, len(self.NumChal),2):
 					self.Challenge += self.NumChal[i:i+2].decode("hex")
 			else:
-					self.Challenge += bytes.fromhex(self.NumChal)
+					self.Challenge = bytes.fromhex(self.NumChal)
 
 
 		# Set up logging
