@@ -210,12 +210,16 @@ class Settings:
 			print(utils.color("[!] The challenge must be exactly 16 chars long.\nExample: 1122334455667788", 1))
 			sys.exit(-1)
 
-		self.Challenge = ""
+		self.Challenge = b''
 		if self.NumChal.lower() == 'random':
 			pass
-		else: 
-			for i in range(0, len(self.NumChal),2):
-				self.Challenge += self.NumChal[i:i+2].decode("hex")
+		else:
+			if self.PY2OR3 == 'PY2':
+				for i in range(0, len(self.NumChal),2):
+					self.Challenge += self.NumChal[i:i+2].decode("hex")
+			else:
+					self.Challenge = bytes.fromhex(self.NumChal)
+
 
 		# Set up logging
 		logging.basicConfig(filename=self.SessionLogFile, level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
