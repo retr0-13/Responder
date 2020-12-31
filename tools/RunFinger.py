@@ -392,9 +392,7 @@ def RunFinger(Host):
             threads.append(p)
             p.start()
     else:
-        if options.grep_output:
-            ShowSmallResults(Host)
-        else:
-            ShowResults(Host)
+        ShowSmallResults(Host)
+
 
 RunFinger(Host)
