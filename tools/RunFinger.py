@@ -39,6 +39,7 @@ if options.TARGET is None:
 Timeout = 2
 Host = options.TARGET
 SMB1 = "Enabled"
+SMB2signing = "False"
 
 class Packet():
     fields = OrderedDict([
@@ -89,6 +90,13 @@ def ParseNegotiateSMB2Ans(data):
 	else:
 		return False 
 
+def SMB2SigningMandatory(data):
+	global SMB2signing
+	if data[70] == "\x03":
+		SMB2signing = "True"
+	else:
+		SMB2signing = "False"
+
 def WorkstationFingerPrint(data):
 	return {
  		b"\x04\x00"    :"Windows 95",
@@ -108,7 +116,7 @@ def GetOsBuildNumber(data):
 	ProductBuild =  struct.unpack("<h",data)[0]
 	return ProductBuild 
 
-def ParseSMBNTLM2Exchange(data, host, bootime):  #Parse SMB NTLMSSP Response
+def ParseSMBNTLM2Exchange(data, host, bootime, signing):  #Parse SMB NTLMSSP Response
 	data = data.encode('latin-1')
 	SSPIStart  = data.find(b'NTLMSSP')
 	SSPIString = data[SSPIStart:]
@@ -122,7 +130,7 @@ def ParseSMBNTLM2Exchange(data, host, bootime):  #Parse SMB NTLMSSP Response
 	WindowsVers       = WorkstationFingerPrint(data[SSPIStart+48:SSPIStart+50])
 	WindowsBuildVers  = GetOsBuildNumber(data[SSPIStart+50:SSPIStart+52])
 	DomainGrab((host, 445))
-	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', RDP:'{}', SMB1:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, IsRDPOn((host,3389)),SMB1)))
+	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', Signing:'{}', RDP:'{}', SMB1:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, signing, IsRDPOn((host,3389)),SMB1)))
 
 def GetBootTime(data):
 	data = data.encode('latin-1')
@@ -319,6 +327,7 @@ def handle(data, host):
 
 	if data[28] == "\x01":
 		global Bootime
+		SMB2SigningMandatory(data)
 		Bootime = IsDCVuln(GetBootTime(data[116:124]), host[0])
 		a =  SMBv2Head(SMBv2Command="\x01\x00",CommandSequence= "\x02\x00\x00\x00\x00\x00\x00\x00")
 		a.calculate()
@@ -329,7 +338,7 @@ def handle(data, host):
 		return buffer0
 
 	if data[28] == "\x02":
-		ParseSMBNTLM2Exchange(data, host[0], Bootime) 
+		ParseSMBNTLM2Exchange(data, host[0], Bootime, SMB2signing) 
 
 ##################
 #run it
