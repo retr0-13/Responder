@@ -18,10 +18,10 @@
 import struct
 import settings
 import codecs
-
+from os import urandom
 from base64 import b64decode, b64encode
 from odict import OrderedDict
-from utils import HTTPCurrentDate, RespondWithIPAton, StructPython2or3, NetworkRecvBufferPython2or3, StructWithLenPython2or3
+from utils import HTTPCurrentDate, SMBTime, RespondWithIPAton, StructPython2or3, NetworkRecvBufferPython2or3, StructWithLenPython2or3
 
 # Packet class handling all packet generation (see odict.py).
 class Packet():
@@ -980,7 +980,7 @@ class SMBNegoAnsLM(Packet):
 		("Maxrawbuff",   "\x00\x00\x01\x00"),
 		("Sessionkey",   "\x00\x00\x00\x00"),
 		("Capabilities", "\xfc\x3e\x01\x00"),
-		("Systemtime",   "\x84\xd6\xfb\xa3\x01\x35\xcd\x01"),
+		("Systemtime",   SMBTime()),
 		("Srvtimezone",  "\x2c\x01"),
 		("Keylength",    "\x08"),
 		("Bcc",          "\x10\x00"),
@@ -1009,11 +1009,11 @@ class SMBNegoAns(Packet):
 		("MaxRawBuff",   "\x00\x00\x01\x00"),
 		("SessionKey",   "\x00\x00\x00\x00"),
 		("Capabilities", "\xfd\xf3\x01\x80"),
-		("SystemTime",   "\x84\xd6\xfb\xa3\x01\x35\xcd\x01"),
+		("SystemTime",   SMBTime()),
 		("SrvTimeZone",  "\xf0\x00"),
 		("KeyLen",    "\x00"),
 		("Bcc",          "\x57\x00"),
-		("Guid",         "\xc8\x27\x3d\xfb\xd4\x18\x55\x4f\xb2\x40\xaf\xd7\x61\x73\x75\x3b"),
+		("Guid",         urandom(16).decode('latin-1')),
 		("InitContextTokenASNId",     "\x60"),
 		("InitContextTokenASNLen",    "\x5b"),
 		("ThisMechASNId",             "\x06"),
@@ -1076,7 +1076,7 @@ class SMBNegoKerbAns(Packet):
 		("SrvTimeZone",               "\xf0\x00"),
 		("KeyLen",                    "\x00"),
 		("Bcc",                       "\x57\x00"),
-		("Guid",                      "\xc8\x27\x3d\xfb\xd4\x18\x55\x4f\xb2\x40\xaf\xd7\x61\x73\x75\x3b"),
+		("Guid",                      urandom(16).decode('latin-1')),
 		("InitContextTokenASNId",     "\x60"),
 		("InitContextTokenASNLen",    "\x5b"),
 		("ThisMechASNId",             "\x06"),
@@ -1377,8 +1377,8 @@ class SMB2NegoAns(Packet):
 		("MaxTransSize",    "\x00\x00\x10\x00"),
 		("MaxReadSize",     "\x00\x00\x10\x00"),
 		("MaxWriteSize",    "\x00\x00\x10\x00"),
-		("SystemTime",      "\x27\xfb\xea\xd7\x50\x09\xd2\x01"),
-		("BootTime",        "\x22\xfb\x80\x01\x40\x09\xd2\x01"),
+		("SystemTime",      SMBTime()),
+		("BootTime",        SMBTime()),
 		("SecBlobOffSet",             "\x80\x00"),
 		("SecBlobLen",                "\x78\x00"),
 		("Reserved2",                 "\x00\x00\x00\x00"),
@@ -1522,7 +1522,7 @@ class SMB2Session1Data(Packet):
 		("NTLMSSPNTLMChallengeAVPairs5UnicodeStr","SMB3.local"),
 		("NTLMSSPNTLMChallengeAVPairs7Id","\x07\x00"),
 		("NTLMSSPNTLMChallengeAVPairs7Len","\x08\x00"),
-		("NTLMSSPNTLMChallengeAVPairs7UnicodeStr","\xc0\x65\x31\x50\xde\x09\xd2\x01"),
+		("NTLMSSPNTLMChallengeAVPairs7UnicodeStr",SMBTime()),
 		("NTLMSSPNTLMChallengeAVPairs6Id","\x00\x00"),
 		("NTLMSSPNTLMChallengeAVPairs6Len","\x00\x00"),
 	])

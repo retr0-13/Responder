@@ -24,6 +24,7 @@ import settings
 import datetime
 import codecs
 import struct
+from calendar import timegm
 
 def RandomChallenge():
 	if settings.Config.PY2OR3 == "PY3":
@@ -50,6 +51,15 @@ def RandomChallenge():
 def HTTPCurrentDate():
 	Date = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
 	return Date
+
+def SMBTime():
+    dt = datetime.datetime.now()
+    dt = dt.replace(tzinfo=None)
+    if settings.Config.PY2OR3 == "PY3":
+       return struct.pack("<Q",116444736000000000 + (timegm(dt.timetuple()) * 10000000)).decode('latin-1')
+    else:
+       return struct.pack("<Q",116444736000000000 + (timegm(dt.timetuple()) * 10000000))
+
 try:
 	import sqlite3
 except:
