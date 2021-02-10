@@ -89,7 +89,7 @@ Additionally, all captured hashed are logged into an SQLite database which you c
 
 ## Considerations ##
 
-- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, UDP 1434, TCP 80, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128 and Multicast UDP 5553.
+- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, UDP 1434, TCP 80, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128, Multicast UDP 5355 and 5353.
 
 - If you run Samba on your system, stop smbd and nmbd and all other services listening on these ports.
 
@@ -164,10 +164,9 @@ Options:
 
 ## Donation ##
 
-You can contribute to this project by donating to the following BTC address:
+You can contribute to this project by donating to the following $XLM (Stellar Lumens) address:
 
-1Pv9rZMNfy9hsW19eQhNGs22gY9sf6twjW
-
+"GCGBMO772FRLU6V4NDUKIEXEFNVSP774H2TVYQ3WWHK4TEKYUUTLUKUH"
 
 ## Acknowledgments ##
 
