@@ -420,5 +420,5 @@ def StartupMessage():
 		print('    %-27s' % "Don't Respond To" + color(str(settings.Config.DontRespondTo), 5, 1))
 	if len(settings.Config.DontRespondToName):
 		print('    %-27s' % "Don't Respond To Names" + color(str(settings.Config.DontRespondToName), 5, 1))
-	print('\n\n')
+	print(color('\nYou like this free software?\nYour company makes $$$$$$ with these epic compromises?\nYou can help to keep this tool free of charge for everyone by sending a few $XLM (Lumens Stellars) to this address: "GCGBMO772FRLU6V4NDUKIEXEFNVSP774H2TVYQ3WWHK4TEKYUUTLUKUH" or legacy $BTC to "1HkFmFs5fmbCoJ7ZM5HHbGgjyqemfU9o7Q"\n\n',3,1))
 
