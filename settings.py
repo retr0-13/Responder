@@ -142,11 +142,12 @@ class Settings:
 		self.WPAD_Script      = config.get('HTTP Server', 'WPADScript')
 		self.HtmlToInject     = config.get('HTTP Server', 'HtmlToInject')
 
-		if not os.path.exists(self.Html_Filename):
-			print(utils.color("/!\ Warning: %s: file not found" % self.Html_Filename, 3, 1))
+		if self.Serve_Exe is True:	
+			if not os.path.exists(self.Html_Filename):
+				print(utils.color("/!\ Warning: %s: file not found" % self.Html_Filename, 3, 1))
 
-		if not os.path.exists(self.Exe_Filename):
-			print(utils.color("/!\ Warning: %s: file not found" % self.Exe_Filename, 3, 1))
+			if not os.path.exists(self.Exe_Filename):
+				print(utils.color("/!\ Warning: %s: file not found" % self.Exe_Filename, 3, 1))
 
 		# SSL Options
 		self.SSLKey  = config.get('HTTPS Server', 'SSLKey')
