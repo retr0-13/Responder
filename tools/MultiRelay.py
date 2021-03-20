@@ -59,6 +59,16 @@ Mimikatzx86Filename = "./MultiRelay/bin/mimikatz_x86.exe"
 RunAsFileName       = "./MultiRelay/bin/Runas.exe"
 SysSVCFileName      = "./MultiRelay/bin/Syssvc.exe"
 
+def color(txt, code = 1, modifier = 0):
+    return "\033[%d;3%dm%s\033[0m" % (modifier, code, txt)
+
+if os.path.isfile(SysSVCFileName) is False:
+   print(color("[!]MultiRelay/bin/ folder is empty. You need to run these commands:\n",1,1))
+   print(color("apt-get install gcc-mingw-w64-x86-64",2,1))
+   print(color("x86_64-w64-mingw32-gcc ./MultiRelay/bin/Runas.c -o ./MultiRelay/bin/Runas.exe -municode -lwtsapi32 -luserenv",2,1))
+   print(color("x86_64-w64-mingw32-gcc ./MultiRelay/bin/Syssvc.c -o ./MultiRelay/bin/Syssvc.exe -municode",2,1))
+   print(color("\nAdditionally, you can add your custom mimikatz executables (mimikatz.exe and mimikatz_x86.exe)\nin the MultiRelay/bin/ folder for the mimi32/mimi command.",3,1))
+   sys.exit()
 
 def UserCallBack(op, value, dmy, parser):
     args=[]
@@ -92,7 +102,7 @@ if options.ExtraPort is None:
     options.ExtraPort = 0
 
 if not os.geteuid() == 0:
-    print((color("[!] MultiRelay must be run as root.")))
+    print(color("[!] MultiRelay must be run as root."))
     sys.exit(-1)
 
 OneCommand       = options.OneCommand
@@ -104,10 +114,6 @@ Host             = [options.TARGET]
 Cmd              = []
 ShellOpen        = []
 Pivoting         = [2]
-
-
-def color(txt, code = 1, modifier = 0):
-    return "\033[%d;3%dm%s\033[0m" % (modifier, code, txt)
 
 def ShowWelcome():
     print(color('\nResponder MultiRelay %s NTLMv1/2 Relay' %(__version__),8,1))
