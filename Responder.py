@@ -328,7 +328,7 @@ def main():
 			thread.setDaemon(True)
 			thread.start()
 
-		print(color('[+]', 2, 1) + " Listening for events...")
+		print(color('\n[+]', 2, 1) + " Listening for events...\n")
 
 		while True:
 			time.sleep(1)
