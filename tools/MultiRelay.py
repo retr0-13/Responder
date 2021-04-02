@@ -29,7 +29,7 @@ import time
 import random
 import subprocess
 from threading import Thread
-if PY2OR3 is "PY3":
+if PY2OR3 == "PY3":
     from socketserver import TCPServer, UDPServer, ThreadingMixIn, BaseRequestHandler
 else:
     from SocketServer import TCPServer, UDPServer, ThreadingMixIn, BaseRequestHandler
@@ -159,13 +159,13 @@ Logs = logging
 Logs.basicConfig(filemode="w",filename=Logs_Path+'logs/SMBRelay-Session.txt',level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 def NetworkSendBufferPython2or3(data):
-    if PY2OR3 is "PY2":
+    if PY2OR3 == "PY2":
         return str(data)
     else:
         return bytes(str(data), 'latin-1')
 
 def NetworkRecvBufferPython2or3(data):
-	if PY2OR3 is "PY2":
+	if PY2OR3 == "PY2":
 		return str(data)
 	else:
 		return str(data.decode('latin-1'))
@@ -446,12 +446,12 @@ class SMBRelay(BaseRequestHandler):
                 data = self.request.recv(4096)
 
             ## Make sure it's not a Kerberos auth.
-            if data.find(b'NTLM') is not -1:
+            if data.find(b'NTLM') != -1:
                 ## Start with nego protocol + session setup negotiate to our target.
                 data, smbdata, s, challenge = GrabNegotiateFromTarget(data, s, Pivoting)
 
                 ## Make sure it's not a Kerberos auth.
-            if data.find(b'NTLM') is not -1:
+            if data.find(b'NTLM') != -1:
             ##Relay all that to our client.
                 if data[8:10] == b'\x73\x00':
                     head = SMBHeader(cmd="\x73",flag1="\x98", flag2="\x43\xc8", errorcode="\x16\x00\x00\xc0", pid=pidcalc(data),mid=midcalc(data))
