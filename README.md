@@ -184,6 +184,10 @@ We would like to thanks those major donator:
 
 - TrustedSec: https://www.trustedsec.com/
 
+- Red Siege Information Security: https://www.redsiege.com/
+
+- Open-Sec: http://www.open-sec.com/
+
 - And all, ALL the pentesters around the world who donated to this project.
 
 Thank you.
