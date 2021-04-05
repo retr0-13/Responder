@@ -168,6 +168,10 @@ You can contribute to this project by donating to the following $XLM (Stellar Lu
 
 "GCGBMO772FRLU6V4NDUKIEXEFNVSP774H2TVYQ3WWHK4TEKYUUTLUKUH"
 
+Or BTC address:
+
+"1HkFmFs5fmbCoJ7ZM5HHbGgjyqemfU9o7Q"
+
 ## Acknowledgments ##
 
 Late Responder development has been possible because of the donations received from individuals and companies.
