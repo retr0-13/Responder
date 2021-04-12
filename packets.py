@@ -18,6 +18,8 @@
 import struct
 import settings
 import codecs
+import random
+import re
 from os import urandom
 from base64 import b64decode, b64encode
 from odict import OrderedDict
@@ -37,6 +39,10 @@ class Packet():
 				self.fields[k] = v
 	def __str__(self):
 		return "".join(map(str, self.fields.values()))
+
+def GenerateCallbackName():
+    return ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in range(11)])
+
 
 # NBT Answer Packet
 class NBT_Ans(Packet):
@@ -65,7 +71,7 @@ class NBT_Ans(Packet):
 class DNS_Ans(Packet):
 	fields = OrderedDict([
 		("Tid",              ""),
-		("Flags",            "\x80\x10"),
+		("Flags",            "\x85\x10"),
 		("Question",         "\x00\x01"),
 		("AnswerRRS",        "\x00\x01"),
 		("AuthorityRRS",     "\x00\x00"),
@@ -88,6 +94,81 @@ class DNS_Ans(Packet):
 		self.fields["IP"] = RespondWithIPAton()
 		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
 
+class DNS_SRV_Ans(Packet):
+	fields = OrderedDict([
+		("Tid",              ""),
+		("Flags",            "\x85\x80"),
+		("Question",         "\x00\x01"),
+		("AnswerRRS",        "\x00\x01"),
+		("AuthorityRRS",     "\x00\x00"),
+		("AdditionalRRS",    "\x00\x01"),
+		("QuestionName",     ""),
+		("QuestionNameNull", "\x00"),
+		("Type",             "\x00\x21"),#srv
+		("Class",            "\x00\x01"),
+		("AnswerPointer",    "\xc0\x0c"),
+		("Type1",            "\x00\x21"),#srv
+		("Class1",           "\x00\x01"),
+		("TTL",              "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
+		("RecordLen",        ""),
+		("Priority",         "\x00\x00"),
+		("Weight",           "\x00\x64"),
+		("Port",             "\x00\x00"),
+		("TargetLenPre",     "\x0f"), # static, we provide netbios computer name 15 chars like Windows by default.
+		("TargetPrefix",     ""),
+		("TargetLenSuff",    ""),
+		("TargetSuffix",     ""),
+		("TargetLenSuff2",   ""),
+		("TargetSuffix2",    ""),
+		("TargetNull",       "\x00"),
+		("AnswerAPointer",   "\xc0"),
+		("AnswerAPtrOffset", ""),
+		("Type2",            "\x00\x01"),#A record.
+		("Class2",           "\x00\x01"),
+		("TTL2",             "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
+		("IPLen",            "\x00\x04"),
+		("IP",               "\x00\x00\x00\x00"),
+	])
+
+	def calculate(self,data):
+		self.fields["Tid"] = data[0:2]
+		DNSName = ''.join(data[12:].split('\x00')[:1])
+		SplitFQDN =  re.split('\W+', DNSName) # split the ldap.tcp.blah.blah.blah.domain.tld
+
+		#What's the question? we need it first to calc all other len.
+		self.fields["QuestionName"] = DNSName
+
+		#Want to be detected that easily by xyz sensor?
+		self.fields["TargetPrefix"] = "win-"+GenerateCallbackName()
+
+		#two last parts of the domain are the actual Domain name.. eg: contoso.com
+		self.fields["TargetSuffix"] = SplitFQDN[-2]
+		self.fields["TargetSuffix2"] = SplitFQDN[-1]
+		#We calculate the len for that domain...
+		self.fields["TargetLenSuff2"] = StructPython2or3(">B",self.fields["TargetSuffix2"])
+		self.fields["TargetLenSuff"] = StructPython2or3(">B",self.fields["TargetSuffix"])
+
+		# Calculate Record len.
+		CalcLen = self.fields["Priority"]+self.fields["Weight"]+self.fields["Port"]+self.fields["TargetLenPre"]+self.fields["TargetPrefix"]+self.fields["TargetLenSuff"]+self.fields["TargetSuffix"]+self.fields["TargetLenSuff2"]+self.fields["TargetSuffix2"]+self.fields["TargetNull"]
+
+		#Our answer len..
+		self.fields["RecordLen"] = StructPython2or3(">h",CalcLen)
+
+		#Where is Answer A Pointer...
+		CalcRROffset= self.fields["QuestionName"]+self.fields["QuestionNameNull"]+self.fields["Type"]+self.fields["Class"]+CalcLen
+		self.fields["AnswerAPtrOffset"] = StructWithLenPython2or3("B",len(CalcRROffset)-4)
+
+		#for now we support ldap and kerberos...
+		if "ldap" in DNSName:
+			self.fields["Port"] = StructWithLenPython2or3(">h", 389)
+
+		if "kerberos" in DNSName:
+			self.fields["Port"] = StructWithLenPython2or3(">h", 88)
+		
+		#Last but not least... we provide our IP, so computers can enjoy our services.
+		self.fields["IP"] = RespondWithIPAton()
+		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
+		
 # LLMNR Answer Packet
 class LLMNR_Ans(Packet):
 	fields = OrderedDict([
@@ -781,6 +862,87 @@ class LDAPNTLMChallenge(Packet):
 		self.fields["NTLMSSPNTLMChallengeAVPairs2Len"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairs2UnicodeStr"])))
 		self.fields["NTLMSSPNTLMChallengeAVPairs1Len"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairs1UnicodeStr"])))
 		self.fields["NTLMSSPNTLMChallengeAVPairsLen"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairsUnicodeStr"])))
+
+##cldap
+class CLDAPNetlogon(Packet):
+	fields = OrderedDict([
+		("ParserHeadASNID",               "\x30"),
+		("ParserHeadASNLenOfLen",         "\x84"),
+		("ParserHeadASNLen",              "\x00\x00\x00\x9D"),
+		("MessageIDASNID",                "\x02"),
+		("MessageIDASNLen",               "\x02"),
+		("MessageIDASNStr",               "\x00\xc4"),#First MsgID
+		("OpHeadASNID",                   "\x64"),
+		("OpHeadASNIDLenOfLen",           "\x84"),
+		("OpHeadASNIDLen",                "\x00\x00\x00\xc7"),
+		("Status",                        "\x04"),
+		("StatusASNLen",                  "\x00"),
+		("StatusASNStr",                  ""),
+		("SequenceHeader",                "\x30"),
+		("SequenceHeaderLenOfLen",        "\x84"),
+		("SequenceHeaderLen",             "\x00\x00\x00\x8b"), 
+                #Netlogon packet starts here....
+		("PartAttribHead",                "\x30"),
+		("PartAttribHeadLenofLen",        "\x84"),
+		("PartAttribHeadLen",             "\x00\x00\x00\x85"),
+		("NetlogonHead",                  "\x04"),
+		("NetlogonLen",                   "\x08"),
+		("NetlogonStr",                   "Netlogon"),
+		("NetAttribHead",                 "\x31"),
+		("NetAttribLenOfLen",             "\x84"),
+		("NetAttribLen",                  "\x00\x00\x00\x75"),
+		("NetAttrib1Head",                "\x04"),
+		("NetAttrib1Len",                 "\x73"),
+		("NTLogonOpcode",                 "\x17\x00"),#SamLogonRespEx opcode
+		("NTLogonSbz",                    "\x00\x00"),
+		("NTLogonFlags",                  "\xFD\xF3\x03\x00"),
+		("NTLogonDomainGUID",             "\x3E\xDE\x55\x61\xF0\x79\x8F\x44\x83\x10\x83\x63\x08\xD4\xBB\x26"),
+		("NTLogonForestName",             "\x04\x73\x6D\x62\x33\x05\x6C\x6F\x63\x61\x6C"),
+		("NTLogonForestNameNull",         "\x00"),
+		("NTLogonDomainNamePtr",          "\xc0"),
+		("NTLogonDomainNamePtrOffset",    "\x18"),
+		("NTLogonPDCNBTName",             "\x0F\x57\x49\x4E\x2D\x48\x51\x46\x42\x34\x4F\x52\x34\x4B\x49\x4D"),
+		("NTLogonPDCNBTTLDPtr",           "\xC0\x18"),
+		("NTLogonDomainNameShort",        "\x04\x53\x4D\x42\x33"),
+		("NTLogonDomainNameShortNull",    "\x00"),
+		("NTLogonDomainNBTName",          "\x0F\x57\x49\x4E\x2D\x48\x51\x46\x42\x34\x4F\x52\x34\x4B\x49\x4D"),
+		("NTLogonDomainNBTNameNull",      "\x00"),
+		("NTLogonUsername",               "\x00"),		           
+                ("DCSiteName",                    "\x17\x44\x65\x66\x61\x75\x6C\x74\x2D\x46\x69\x72\x73\x74\x2D\x53\x69\x74\x65\x2D\x4E\x61\x6D\x65\x00"),#static 95% PDC use this.
+		("ClientSiteNamePtr",             "\xc0"),
+		("ClientSiteNamePtrOffset",       "\x50"),
+		("NTLogonVersion",                "\x05\x00\x00\x00"),
+		("LMNTToken",                     "\xff\xff"),
+		("LM2Token",                      "\xff\xff"),#End netlogon.
+		("CLDAPMessageIDHeader",          "\x30\x84\x00\x00\x00\x11"),
+		("CLDAPMessageIDInt",             "\x02"),
+		("CLDAPMessageIDlen",             "\x02"),
+		("CLDAPMessageIDStr",             "\x00\xc4"),#Second MsgID
+		("SearchDone",                    "\x65\x84\x00\x00\x00\x07"),
+		("SearchDoneMatched",             "\x0A\x01\x00\x04\x00\x04\x00"),
+	])
+
+	def calculate(self):
+
+		###### LDAP Packet Len
+		CalculatePacketLen = str(self.fields["MessageIDASNID"])+str(self.fields["MessageIDASNLen"])+str(self.fields["MessageIDASNStr"])+str(self.fields["OpHeadASNID"])+str(self.fields["OpHeadASNIDLenOfLen"])+str(self.fields["OpHeadASNIDLen"])+str(self.fields["Status"])+str(self.fields["StatusASNLen"])+str(self.fields["StatusASNStr"])+str(self.fields["SequenceHeader"])+str(self.fields["SequenceHeaderLen"])+str(self.fields["SequenceHeaderLenOfLen"])
+		OperationPacketLen = str(self.fields["Status"])+str(self.fields["StatusASNLen"])+str(self.fields["StatusASNStr"])+str(self.fields["SequenceHeader"])+str(self.fields["SequenceHeaderLen"])+str(self.fields["SequenceHeaderLenOfLen"])
+
+		###### Netlogon + Search Successfull Len
+		CalculateNetlogonLen = str(self.fields["NTLogonOpcode"])+str(self.fields["NTLogonSbz"])+str(self.fields["NTLogonFlags"])+str(self.fields["NTLogonDomainGUID"])+str(self.fields["NTLogonForestName"])+str(self.fields["NTLogonForestNameNull"])+str(self.fields["NTLogonDomainNamePtr"])+str(self.fields["NTLogonDomainNamePtrOffset"])+str(self.fields["NTLogonPDCNBTName"])+str(self.fields["NTLogonPDCNBTTLDPtr"])+str(self.fields["NTLogonDomainNameShort"])+str(self.fields["NTLogonDomainNameShortNull"])+str(self.fields["NTLogonDomainNBTName"])+str(self.fields["NTLogonDomainNBTNameNull"])+str(self.fields["NTLogonUsername"])+str(self.fields["DCSiteName"])+str(self.fields["ClientSiteNamePtr"])+str(self.fields["ClientSiteNamePtrOffset"])+str(self.fields["NTLogonVersion"])+str(self.fields["LMNTToken"])+str(self.fields["LM2Token"]) #115 now.
+
+
+		CalculateNetlogonOffset = str(self.fields["NTLogonForestName"])+str(self.fields["NTLogonForestNameNull"])+str(self.fields["NTLogonDomainNamePtr"])+str(self.fields["NTLogonDomainNamePtrOffset"])+str(self.fields["NTLogonPDCNBTName"])+str(self.fields["NTLogonPDCNBTTLDPtr"])+str(self.fields["NTLogonDomainNameShort"])+str(self.fields["NTLogonDomainNameShortNull"])+str(self.fields["NTLogonDomainNBTName"])+str(self.fields["NTLogonDomainNBTNameNull"])+str(self.fields["NTLogonUsername"])+str(self.fields["DCSiteName"])
+
+		##### LDAP ASN Len Calculation:
+		self.fields["NetAttrib1Len"] = StructWithLenPython2or3(">B", len(CalculateNetlogonLen))
+		self.fields["NetAttribLen"] = StructWithLenPython2or3(">L", len(CalculateNetlogonLen)+2)
+		self.fields["PartAttribHeadLen"] = StructWithLenPython2or3(">L", len(CalculateNetlogonLen)+18)
+		self.fields["SequenceHeaderLen"] = StructWithLenPython2or3(">L", len(CalculateNetlogonLen)+24)
+		self.fields["OpHeadASNIDLen"] = StructWithLenPython2or3(">L", len(CalculateNetlogonLen)+32)
+		self.fields["ParserHeadASNLen"] = StructWithLenPython2or3(">L", len(CalculateNetlogonLen)+42)
+		###### 
+		self.fields["ClientSiteNamePtrOffset"] = StructWithLenPython2or3(">B", len(CalculateNetlogonOffset)-1)
 
 ##### SMB Packets #####
 class SMBHeader(Packet):
