@@ -101,7 +101,7 @@ class DNS_SRV_Ans(Packet):
 		("Question",         "\x00\x01"),
 		("AnswerRRS",        "\x00\x01"),
 		("AuthorityRRS",     "\x00\x00"),
-		("AdditionalRRS",    "\x00\x01"),
+		("AdditionalRRS",    "\x00\x00"),
 		("QuestionName",     ""),
 		("QuestionNameNull", "\x00"),
 		("Type",             "\x00\x21"),#srv
@@ -121,13 +121,6 @@ class DNS_SRV_Ans(Packet):
 		("TargetLenSuff2",   ""),
 		("TargetSuffix2",    ""),
 		("TargetNull",       "\x00"),
-		("AnswerAPointer",   "\xc0"),
-		("AnswerAPtrOffset", ""),
-		("Type2",            "\x00\x01"),#A record.
-		("Class2",           "\x00\x01"),
-		("TTL2",             "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
-		("IPLen",            "\x00\x04"),
-		("IP",               "\x00\x00\x00\x00"),
 	])
 
 	def calculate(self,data):
@@ -154,21 +147,13 @@ class DNS_SRV_Ans(Packet):
 		#Our answer len..
 		self.fields["RecordLen"] = StructPython2or3(">h",CalcLen)
 
-		#Where is Answer A Pointer...
-		CalcRROffset= self.fields["QuestionName"]+self.fields["QuestionNameNull"]+self.fields["Type"]+self.fields["Class"]+CalcLen
-		self.fields["AnswerAPtrOffset"] = StructWithLenPython2or3("B",len(CalcRROffset)-4)
-
 		#for now we support ldap and kerberos...
 		if "ldap" in DNSName:
 			self.fields["Port"] = StructWithLenPython2or3(">h", 389)
 
 		if "kerberos" in DNSName:
 			self.fields["Port"] = StructWithLenPython2or3(">h", 88)
-		
-		#Last but not least... we provide our IP, so computers can enjoy our services.
-		self.fields["IP"] = RespondWithIPAton()
-		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
-		
+
 # LLMNR Answer Packet
 class LLMNR_Ans(Packet):
 	fields = OrderedDict([
@@ -1916,5 +1901,4 @@ class RDPNTLMChallengeAnswer(Packet):
 		self.fields["NTLMSSPNTLMChallengeAVPairs2Len"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairs2UnicodeStr"])))
 		self.fields["NTLMSSPNTLMChallengeAVPairs1Len"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairs1UnicodeStr"])))
 		self.fields["NTLMSSPNTLMChallengeAVPairsLen"] = StructWithLenPython2or3("<h", len(str(self.fields["NTLMSSPNTLMChallengeAVPairsUnicodeStr"])))
-
 
