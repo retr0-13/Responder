@@ -176,9 +176,11 @@ Or BTC address:
 
 Late Responder development has been possible because of the donations received from individuals and companies.
 
-We would like to thanks those major donator:
+We would like to thanks those major sponsors:
 
-- SecureWorks : https://www.secureworks.com/
+- SecureWorks: https://www.secureworks.com/
+
+- Synacktiv: https://www.synacktiv.com/
 
 - Black Hills Information Security: http://www.blackhillsinfosec.com/
 
