@@ -33,7 +33,7 @@ def ParseDNSType(data):
 
 class DNS(BaseRequestHandler):
 	def handle(self):
-		# Break out if we don't want to respond to this host
+		# Ditch it if we don't want to respond to this host
 		if RespondToThisIP(self.client_address[0]) is not True:
 			return None
 

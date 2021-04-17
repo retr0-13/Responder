@@ -386,6 +386,7 @@ def StartupMessage():
 	print('    %-27s' % "DNS server" + (enabled if settings.Config.DNS_On_Off else disabled))
 	print('    %-27s' % "LDAP server" + (enabled if settings.Config.LDAP_On_Off else disabled))
 	print('    %-27s' % "RDP server" + (enabled if settings.Config.RDP_On_Off else disabled))
+	print('    %-27s' % "DCE-RPC server" + (enabled if settings.Config.RDP_On_Off else disabled))
 	print('')
 
 	print(color("[+] ", 2, 1) + "HTTP Options:")
@@ -420,4 +421,9 @@ def StartupMessage():
 		print('    %-27s' % "Don't Respond To" + color(str(settings.Config.DontRespondTo), 5, 1))
 	if len(settings.Config.DontRespondToName):
 		print('    %-27s' % "Don't Respond To Names" + color(str(settings.Config.DontRespondToName), 5, 1))
+	print('')
 
+	print(color("[+] ", 2, 1) + "Current Session Variables:")
+	print('    %-27s' % "Responder Machine Name" + color('[%s]' % settings.Config.MachineName, 5, 1))
+	print('    %-27s' % "Responder Domain Name" + color('[%s]' % settings.Config.DomainName, 5, 1))
+	print('    %-27s' % "Responder DCE-RPC Port " + color('[%s]' % settings.Config.RPCPort, 5, 1))

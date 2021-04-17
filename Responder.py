@@ -270,6 +270,11 @@ def main():
 			from servers.RDP import RDP
 			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 3389, RDP,)))
 
+		if settings.Config.DCERPC_On_Off:
+			from servers.RPC import RPCMap, RPCMapper
+			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 135, RPCMap,)))
+			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, settings.Config.RPCPort, RPCMapper,)))
+
 		if settings.Config.WPAD_On_Off:
 			from servers.HTTP_Proxy import HTTP_Proxy
 			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 3141, HTTP_Proxy,)))

@@ -265,7 +265,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 					# STATUS_MORE_PROCESSING_REQUIRED
 					Header = SMBHeader(cmd="\x73",flag1="\x88", flag2="\x01\xc8", errorcode="\x16\x00\x00\xc0", uid=chr(randrange(256))+chr(randrange(256)),pid=pidcalc(NetworkRecvBufferPython2or3(data)),tid="\x00\x00",mid=midcalc(NetworkRecvBufferPython2or3(data)))
 					if settings.Config.CaptureMultipleCredentials and self.ntry == 0:
-						Body = SMBSession1Data(NTLMSSPNtServerChallenge=NetworkRecvBufferPython2or3(Challenge), NTLMSSPNTLMChallengeAVPairsUnicodeStr="NOMATCH")
+						Body = SMBSession1Data(NTLMSSPNtServerChallenge=NetworkRecvBufferPython2or3(Challenge))
 					else:
 						Body = SMBSession1Data(NTLMSSPNtServerChallenge=NetworkRecvBufferPython2or3(Challenge))
 					Body.calculate()
@@ -279,7 +279,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 
 					if data[8:10] == b"\x73\x00" and data[4:5] == b"\xff":  # STATUS_SUCCESS
 						if Is_Anonymous(data):
-							Header = SMBHeader(cmd="\x73",flag1="\x98", flag2="\x01\xc8",errorcode="\x72\x00\x00\xc0",pid=pidcalc(data),tid="\x00\x00",uid=uidcalc(NetworkRecvBufferPython2or3(data)),mid=midcalc(NetworkRecvBufferPython2or3(data)))###should always send errorcode="\x72\x00\x00\xc0" account disabled for anonymous logins.
+							Header = SMBHeader(cmd="\x73",flag1="\x98", flag2="\x01\xc8",errorcode="\x72\x00\x00\xc0",pid=pidcalc(NetworkRecvBufferPython2or3(data)),tid="\x00\x00",uid=uidcalc(NetworkRecvBufferPython2or3(data)),mid=midcalc(NetworkRecvBufferPython2or3(data)))###should always send errorcode="\x72\x00\x00\xc0" account disabled for anonymous logins.
 							Body = SMBSessEmpty()
 
 							packet1 = str(Header)+str(Body)

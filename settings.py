@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import utils, sys
+import utils, sys, random
 if (sys.version_info > (3, 0)):
 	import configparser as ConfigParser
 else:
@@ -23,7 +23,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 3.0.4.0'
+__version__ = 'Responder 3.0.5.0'
 
 class Settings:
 	
@@ -96,6 +96,7 @@ class Settings:
 		self.LDAP_On_Off     = self.toBool(config.get('Responder Core', 'LDAP'))
 		self.DNS_On_Off      = self.toBool(config.get('Responder Core', 'DNS'))
 		self.RDP_On_Off      = self.toBool(config.get('Responder Core', 'RDP'))
+		self.DCERPC_On_Off      = self.toBool(config.get('Responder Core', 'DCERPC'))
 		self.Krb_On_Off      = self.toBool(config.get('Responder Core', 'Kerberos'))
 
 		# Db File
@@ -159,6 +160,12 @@ class Settings:
 		self.DontRespondTo     = list(filter(None, [x.upper().strip() for x in config.get('Responder Core', 'DontRespondTo').strip().split(',')]))
 		self.DontRespondToName = list(filter(None, [x.upper().strip() for x in config.get('Responder Core', 'DontRespondToName').strip().split(',')]))
 
+		#Generate Random stuff for one Responder session
+		self.MachineName       = 'WIN-'+''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(11)])
+		self.Domain            = ''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(4)])
+		self.DomainName        = self.Domain + '.LOCAL'
+		self.MachineNego       = ''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(9)]) +'$@'+self.DomainName
+		self.RPCPort           = random.randrange(45000, 49999)
 		# Auto Ignore List
 		self.AutoIgnore                       = self.toBool(config.get('Responder Core', 'AutoIgnoreAfterSuccess'))
 		self.CaptureMultipleCredentials       = self.toBool(config.get('Responder Core', 'CaptureMultipleCredentials'))

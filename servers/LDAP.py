@@ -25,9 +25,6 @@ import struct
 import codecs
 import random
 
-def GenerateNetbiosName():
-    return 'WIN-'+''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in range(11)])
-
 def CalculateDNSName(name):
 	if isinstance(name, bytes):
 		name = name.decode('latin-1')
@@ -41,7 +38,6 @@ def CalculateDNSName(name):
 	return Dnslen, DomainPrefix
 
 def ParseCLDAPNetlogon(data):
-	#data = NetworkSendBufferPython2or3(data)
 	try:
 		Dns = data.find(b'DnsDomain')
 		if Dns is -1:
@@ -66,20 +62,24 @@ def ParseCLDAPNetlogon(data):
 def ParseSearch(data):
 	TID = data[8:9].decode('latin-1')
 	if re.search(b'Netlogon', data):
-		NbtName = GenerateNetbiosName()
+		NbtName = settings.Config.MachineName
 		TID = NetworkRecvBufferPython2or3(data[8:10])
+		if TID[1] == "\x63":
+			TID = "\x00"+TID[0]
 		DomainName, DomainGuid = ParseCLDAPNetlogon(data)
 		DomainGuid = NetworkRecvBufferPython2or3(DomainGuid)
 		t = CLDAPNetlogon(MessageIDASNStr=TID ,CLDAPMessageIDStr=TID, NTLogonDomainGUID=DomainGuid, NTLogonForestName=CalculateDNSName(DomainName)[0],NTLogonPDCNBTName=CalculateDNSName(NbtName)[0], NTLogonDomainNBTName=CalculateDNSName(NbtName)[0],NTLogonDomainNameShort=CalculateDNSName(DomainName)[1])
 		t.calculate()
 		return str(t)
 
-	if re.search(b'(objectClass)', data):
-		return str(LDAPSearchDefaultPacket(MessageIDASNStr=TID))
-	elif re.search(b'(?i)(objectClass0*.*supportedCapabilities)', data):
-		return str(LDAPSearchSupportedCapabilitiesPacket(MessageIDASNStr=TID,MessageIDASN2Str=TID))
 	elif re.search(b'(?i)(objectClass0*.*supportedSASLMechanisms)', data):
 		return str(LDAPSearchSupportedMechanismsPacket(MessageIDASNStr=TID,MessageIDASN2Str=TID))
+
+	elif re.search(b'(?i)(objectClass0*.*supportedCapabilities)', data):
+		return str(LDAPSearchSupportedCapabilitiesPacket(MessageIDASNStr=TID,MessageIDASN2Str=TID))
+
+	if re.search(b'(objectClass)', data):
+		return str(LDAPSearchDefaultPacket(MessageIDASNStr=TID))
 
 def ParseLDAPHash(data,client, Challenge):  #Parse LDAP NTLMSSP v1/v2
 	SSPIStart  = data.find(b'NTLMSSP')
@@ -143,9 +143,10 @@ def ParseNTLM(data,client, Challenge):
 
 def ParseCLDAPPacket(data, client, Challenge):
 	if data[1:2] == b'\x84':
-		PacketLen        = struct.unpack('>i',data[2:6])[0]
-		MessageSequence  = struct.unpack('<b',data[8:9])[0]
 		Operation        = data[10:11]
+		PacketLen        = struct.unpack('>i',data[2:6])[0]
+		if Operation == b'\x84':
+			Operation = data[9:10]
 		sasl             = data[20:21]
 		OperationHeadLen = struct.unpack('>i',data[11:15])[0]
 		LDAPVersion      = struct.unpack('<b',data[17:18])[0]
@@ -172,10 +173,11 @@ def ParseCLDAPPacket(data, client, Challenge):
 		
 		elif Operation == b'\x63':
 			Buffer = ParseSearch(data)
+			print(text('[CLDAP] Sent CLDAP pong to %s.'% client))
 			return Buffer
 
 		elif settings.Config.Verbose:
-			print(text('[LDAP] Operation not supported'))
+			print(text('[CLDAP] Operation not supported'))
 
 	if data[5:6] == b'\x60':
 		UserLen = struct.unpack("<b",data[11:12])[0]
@@ -183,7 +185,7 @@ def ParseCLDAPPacket(data, client, Challenge):
 		PassLen = struct.unpack("<b",data[12+UserLen+1:12+UserLen+2])[0]
 		PassStr = data[12+UserLen+2:12+UserLen+3+PassLen].decode('latin-1')
 		if settings.Config.Verbose:
-			print(text('[LDAP] Attempting to parse an old simple Bind request.'))
+			print(text('[CLDAP] Attempting to parse an old simple Bind request.'))
 		SaveToDb({
 			'module': 'LDAP',
 			'type': 'Cleartext',
@@ -203,8 +205,6 @@ def ParseLDAPPacket(data, client, Challenge):
 		OperationHeadLen = struct.unpack('>i',data[11:15])[0]
 		LDAPVersion      = struct.unpack('<b',data[17:18])[0]
 		if Operation == b'\x60':#Bind
-			if "ldap" in data:# No Kerberos
-				return False
 			UserDomainLen  = struct.unpack('<b',data[19:20])[0]
 			UserDomain     = data[20:20+UserDomainLen].decode('latin-1')
 			AuthHeaderType = data[20+UserDomainLen:20+UserDomainLen+1]
