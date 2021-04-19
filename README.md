@@ -24,7 +24,7 @@ In order to redirect SQL Authentication to this tool, you will need to set the o
 
 - Built-in HTTP Auth server.
 
-In order to redirect HTTP Authentication to this tool, you will need to set the option -r for Windows version older than Vista (NBT-NS queries for HTTP server lookup are sent using the Workstation Service name suffix). For Vista and higher, LLMNR will be used. This server supports NTLMv1, NTLMv2 hashes *and* Basic Authentication. This server was successfully tested on IE 6 to IE 10, Firefox, Chrome, Safari.
+In order to redirect HTTP Authentication to this tool, you will need to set the option -r for Windows version older than Vista (NBT-NS queries for HTTP server lookup are sent using the Workstation Service name suffix). For Vista and higher, LLMNR will be used. This server supports NTLMv1, NTLMv2 hashes *and* Basic Authentication. This server was successfully tested on IE 6 to IE 11, Edge, Firefox, Chrome, Safari.
 
 Note: This module also works for WebDav NTLM authentication issued from Windows WebDav clients (WebClient). You can now send your custom files to a victim.
 
@@ -34,7 +34,11 @@ Same as above. The folder certs/ contains 2 default keys, including a dummy pri
 
 - Built-in LDAP Auth server.
 
-In order to redirect LDAP Authentication to this tool, you will need to set the option -r for Windows version older than Vista (NBT-NS queries for HTTP server lookup are sent using the Workstation Service name suffix). For Vista and higher, LLMNR will be used. This server supports NTLMSSP hashes and Simple Authentication (clear text authentication). This server was successfully tested on Windows Support tool "ldp" and LdapAdmin.
+In order to redirect LDAP Authentication to this tool, you will need to set the option -r for Windows version older than Vista (NBT-NS queries for LDAP server lookup are sent using the Workstation Service name suffix). For Vista and higher, LLMNR will be used. This server supports NTLMSSP hashes and Simple Authentication (clear text authentication). This server was successfully tested on Windows Support tool "ldp" and LdapAdmin.
+
+- Built-in DCE-RPC Auth server.
+
+In order to redirect DCE-RPC Authentication to this tool, you will need to set the option -r and -d (NBT-NS queries for DCE-RPC server lookup are sent using the Workstation and Domain Service name suffix). For Vista and higher, LLMNR will be used. This server supports NTLMSSP hashes. This server was successfully tested on Windows XP to Server 2019.
 
 - Built-in FTP, POP3, IMAP, SMTP Auth servers.
 
@@ -42,7 +46,7 @@ This modules will collect clear text credentials.
 
 - Built-in DNS server.
 
-This server will answer type A queries. This is really handy when it's combined with ARP spoofing. 
+This server will answer type SRV and A queries. This is really handy when it's combined with ARP spoofing. 
 
 - Built-in WPAD Proxy Server.
 
@@ -66,7 +70,7 @@ For MITM on Windows XP/2003 and earlier Domain members. This attack combined wit
 
     python tools/DHCP.py
 
-DHCP Inform Spoofing. Allows you to let the real DHCP Server issue IP addresses, and then send a DHCP Inform answer to set your IP address as a primary DNS server, and your own WPAD URL.
+DHCP Inform Spoofing. Allows you to let the real DHCP Server issue IP addresses, and then send a DHCP Inform answer to set your IP address as a primary DNS server, and your own WPAD URL. To inject a DNS server, domain, route on all Windows version and any linux box, use -R
 
 - Analyze mode.
 
@@ -89,7 +93,7 @@ Additionally, all captured hashed are logged into an SQLite database which you c
 
 ## Considerations ##
 
-- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, UDP 1434, TCP 80, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128, Multicast UDP 5355 and 5353.
+- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, UDP 1434, TCP 80, TCP 135, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128, Multicast UDP 5355 and 5353.
 
 - If you run Samba on your system, stop smbd and nmbd and all other services listening on these ports.
 
