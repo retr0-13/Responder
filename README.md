@@ -16,11 +16,11 @@ The concept behind this is to target our answers, and be stealthier on the netwo
 
 - Built-in SMB Auth server.
 	
-Supports NTLMv1, NTLMv2 hashes with Extended Security NTLMSSP by default. Successfully tested from Windows 95 to Server 2012 RC, Samba and Mac OSX Lion. Clear text password is supported for NT4, and LM hashing downgrade when the --lm option is set. SMBv2 has also been implemented and is supported by default.
+Supports NTLMv1, NTLMv2 hashes with Extended Security NTLMSSP by default. Successfully tested from Windows 95 to Server 2022, Samba and Mac OSX Lion. Clear text password is supported for NT4, and LM hashing downgrade when the --lm option is set. SMBv2 has also been implemented and is supported by default.
 
 - Built-in MSSQL Auth server.
 
-In order to redirect SQL Authentication to this tool, you will need to set the option -r (NBT-NS queries for SQL Server lookup are using the Workstation Service name suffix) for systems older than windows Vista (LLMNR will be used for Vista and higher). This server supports NTLMv1, LMv2 hashes. This functionality was successfully tested on Windows SQL Server 2005 & 2008.
+In order to redirect SQL Authentication to this tool, you will need to set the option -r (NBT-NS queries for SQL Server lookup are using the Workstation Service name suffix) for systems older than windows Vista (LLMNR will be used for Vista and higher). This server supports NTLMv1, LMv2 hashes. This functionality was successfully tested on Windows SQL Server 2005, 2008, 2012, 2019.
 
 - Built-in HTTP Auth server.
 
