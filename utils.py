@@ -387,6 +387,7 @@ def StartupMessage():
 	print('    %-27s' % "LDAP server" + (enabled if settings.Config.LDAP_On_Off else disabled))
 	print('    %-27s' % "RDP server" + (enabled if settings.Config.RDP_On_Off else disabled))
 	print('    %-27s' % "DCE-RPC server" + (enabled if settings.Config.RDP_On_Off else disabled))
+	print('    %-27s' % "WinRM server" + (enabled if settings.Config.WinRM_On_Off else disabled))
 	print('')
 
 	print(color("[+] ", 2, 1) + "HTTP Options:")

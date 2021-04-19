@@ -317,6 +317,21 @@ class IIS_NTLM_Challenge_Ans(Packet):
 	def calculate(self,payload):
 		self.fields["Payload"] = b64encode(payload)
 
+class WinRM_NTLM_Challenge_Ans(Packet):
+	fields = OrderedDict([
+		("Code",          "HTTP/1.1 401 \r\n"),
+		("WWWAuth",       "WWW-Authenticate: Negotiate "),
+		("Payload",       ""),
+		("Payload-CRLF",  "\r\n"),
+		("ServerType",    "Server: Microsoft-HTTPAPI/2.0\r\n"),
+		("Date",          "Date: "+HTTPCurrentDate()+"\r\n"),
+		("Len",           "Content-Length: 0\r\n"),
+		("CRLF",          "\r\n"),
+	])
+
+	def calculate(self,payload):
+		self.fields["Payload"] = b64encode(payload)
+
 class IIS_Basic_401_Ans(Packet):
 	fields = OrderedDict([
 		("Code",          "HTTP/1.1 401 Unauthorized\r\n"),
@@ -2127,5 +2142,4 @@ class RPCNTLMNego(Packet):
 		Data= str(self.fields["Version"])+str(self.fields["VersionLow"])+str(self.fields["PacketType"])+str(self.fields["PacketFlag"])+str(self.fields["DataRepresent"])+str(self.fields["FragLen"])+str(self.fields["AuthLen"])+str(self.fields["CallID"])+str(self.fields["MaxTransFrag"])+str(self.fields["MaxRecvFrag"])+str(self.fields["GroupAssoc"])+str(self.fields["CurrentPortLen"])+str(self.fields["CurrentPortStr"])+str(self.fields["CurrentPortNull"])+str(self.fields["Pcontext"])+str(self.fields["CTX0ContextID"])+str(self.fields["CTX0ItemNumber"])+str(self.fields["CTX0UID"])+str(self.fields["CTX0UIDVersion"])+str(self.fields["CTX1ContextID"])+str(self.fields["CTX1ItemNumber"])+str(self.fields["CTX1UID"])+str(self.fields["CTX1UIDVersion"])+str(self.fields["CTX2ContextID"])+str(self.fields["CTX2ItemNumber"])+str(self.fields["CTX2UID"])+str(self.fields["CTX2UIDVersion"]) +str(self.fields["AuthType"])+str(self.fields["AuthLevel"])+str(self.fields["AuthReserved"])+str(self.fields["AuthContextID"])+str(self.fields["Data"])
 
 		self.fields["FragLen"] = StructWithLenPython2or3("<h",len(Data))
-
 

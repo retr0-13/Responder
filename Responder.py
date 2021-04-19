@@ -262,6 +262,10 @@ def main():
 			from servers.HTTP import HTTP
 			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 80, HTTP,)))
 
+		if settings.Config.WinRM_On_Off:
+			from servers.WinRM import WinRM
+			threads.append(Thread(target=serve_thread_tcp, args=(settings.Config.Bind_To, 5985, WinRM,)))
+
 		if settings.Config.SSL_On_Off:
 			from servers.HTTP import HTTP
 			threads.append(Thread(target=serve_thread_SSL, args=(settings.Config.Bind_To, 443, HTTP,)))
