@@ -22,7 +22,7 @@ from odict import OrderedDict
 import errno
 import optparse
 from RunFingerPackets import *
-__version__ = "1.2"
+__version__ = "1.3"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
@@ -169,7 +169,10 @@ def dtoa(d):
 
 def OsNameClientVersion(data):
     try:
-        length = struct.unpack('<H',data[43:45].encode('latin-1'))[0]
+        if PY2OR3 == "PY3":
+                length = struct.unpack('<H',data[43:45].encode('latin-1'))[0]
+        else:
+                length = struct.unpack('<H',data[43:45])[0]
         if length > 255:
             OsVersion, ClientVersion = tuple([e.replace("\x00", "") for e in data[47+length:].split('\x00\x00\x00')[:2]])
             return OsVersion, ClientVersion
