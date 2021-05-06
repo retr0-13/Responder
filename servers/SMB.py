@@ -219,7 +219,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 					self.request.send(NetworkSendBufferPython2or3(buffer1))
 					data = self.request.recv(1024)
 
-                                ## Session Setup 1 answer SMBv2.
+                                ## Nego answer SMBv2.
 				if data[16:18] == b"\x00\x00" and data[4:5] == b"\xfe":
 					head = SMB2Header(MessageId=GrabMessageID(data).decode('latin-1'), PID="\xff\xfe\x00\x00", CreditCharge=GrabCreditCharged(data).decode('latin-1'), Credits=GrabCreditRequested(data).decode('latin-1'))
 					t = SMB2NegoAns(Dialect="\x10\x02")
@@ -238,7 +238,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 					self.request.send(NetworkSendBufferPython2or3(buffer1))
 					data = self.request.recv(1024)
                                 ## Session Setup 3 answer SMBv2.
-				if data[16:18] == b'\x01\x00' and GrabMessageID(data)[0:1] == b'\x02' and data[4:5] == b'\xfe':
+				if data[16:18] == b'\x01\x00' and GrabMessageID(data)[0:1] == b'\x02' or GrabMessageID(data)[0:1] == b'\x03' and data[4:5] == b'\xfe':
 					ParseSMBHash(data, self.client_address[0], Challenge)
 					head = SMB2Header(Cmd="\x01\x00", MessageId=GrabMessageID(data).decode('latin-1'), PID="\xff\xfe\x00\x00", CreditCharge=GrabCreditCharged(data).decode('latin-1'), Credits=GrabCreditRequested(data).decode('latin-1'), NTStatus="\x22\x00\x00\xc0", SessionID=GrabSessionID(data).decode('latin-1'))
 					t = SMB2Session2Data()
@@ -333,7 +333,7 @@ class SMB1(BaseRequestHandler):  # SMB1 & SMB2 Server class, NTLMSSP
 class SMB1LM(BaseRequestHandler):  # SMB Server class, old version
 	def handle(self):
 		try:
-			self.request.settimeout(0.5)
+			self.request.settimeout(1)
 			data = self.request.recv(1024)
 			Challenge = RandomChallenge()
 			if data[0] == b"\x81":  #session request 139
