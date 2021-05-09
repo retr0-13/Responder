@@ -40,11 +40,11 @@ def CalculateDNSName(name):
 def ParseCLDAPNetlogon(data):
 	try:
 		Dns = data.find(b'DnsDomain')
-		if Dns is -1:
+		if Dns == -1:
 			return False
 		DnsName = data[Dns+9:]
 		DnsGuidOff = data.find(b'DomainGuid')
-		if DnsGuidOff is -1:
+		if DnsGuidOff == -1:
 			return False
 		Guid = data[DnsGuidOff+10:]
 		if Dns:
@@ -72,13 +72,13 @@ def ParseSearch(data):
 		t.calculate()
 		return str(t)
 
-	elif re.search(b'(?i)(objectClass0*.*supportedSASLMechanisms)', data):
+	if re.search(b'(?i)(objectClass0*.*supportedSASLMechanisms)', data):
 		return str(LDAPSearchSupportedMechanismsPacket(MessageIDASNStr=TID,MessageIDASN2Str=TID))
 
 	elif re.search(b'(?i)(objectClass0*.*supportedCapabilities)', data):
 		return str(LDAPSearchSupportedCapabilitiesPacket(MessageIDASNStr=TID,MessageIDASN2Str=TID))
 
-	if re.search(b'(objectClass)', data):
+	elif re.search(b'(objectClass)', data):
 		return str(LDAPSearchDefaultPacket(MessageIDASNStr=TID))
 
 def ParseLDAPHash(data,client, Challenge):  #Parse LDAP NTLMSSP v1/v2

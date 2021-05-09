@@ -47,7 +47,7 @@ def Chose3264x(packet):
 
 def FindNTLMOpcode(data):
 	SSPIStart  = data.find(b'NTLMSSP')
-	if SSPIStart is -1:
+	if SSPIStart == -1:
 		return False
 	SSPIString = data[SSPIStart:]
 	return SSPIString[8:12]
