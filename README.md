@@ -163,6 +163,7 @@ Options:
                                 with -r. Default: Off
 	  --lm                  Force LM hashing downgrade for Windows XP/2003 and
 	                        earlier. Default: Off
+	  --disable-ess         Force ESS downgrade. Default: Off
 	  -v, --verbose         Increase verbosity.
 	
 
