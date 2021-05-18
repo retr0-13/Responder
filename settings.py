@@ -176,6 +176,7 @@ class Settings:
 		# CLI options
 		self.ExternalIP         = options.ExternalIP
 		self.LM_On_Off          = options.LM_On_Off
+		self.NOESS_On_Off       = options.NOESS_On_Off
 		self.WPAD_On_Off        = options.WPAD_On_Off
 		self.Wredirect          = options.Wredirect
 		self.NBTNSDomain        = options.NBTNSDomain

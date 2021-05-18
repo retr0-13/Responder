@@ -403,6 +403,7 @@ def StartupMessage():
 	print('    %-27s' % "Force WPAD auth" + (enabled if settings.Config.Force_WPAD_Auth else disabled))
 	print('    %-27s' % "Force Basic Auth" + (enabled if settings.Config.Basic else disabled))
 	print('    %-27s' % "Force LM downgrade" + (enabled if settings.Config.LM_On_Off == True else disabled))
+	print('    %-27s' % "Force ESS downgrade" + (enabled if settings.Config.NOESS_On_Off == True or settings.Config.LM_On_Off == True else disabled))
 	print('    %-27s' % "Fingerprint hosts" + (enabled if settings.Config.Finger_On_Off == True else disabled))
 	print('')
 
