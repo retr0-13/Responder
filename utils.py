@@ -369,6 +369,7 @@ def StartupMessage():
 	print('    %-27s' % "LLMNR" + enabled)
 	print('    %-27s' % "NBT-NS" + enabled)
 	print('    %-27s' % "DNS/MDNS" + enabled)
+	print('    %-27s' % "DHCP" + (enabled if settings.Config.DHCP_On_Off else disabled))
 	print('')
 
 	print(color("[+] ", 2, 1) + "Servers:")
@@ -403,6 +404,7 @@ def StartupMessage():
 	print('    %-27s' % "Force WPAD auth" + (enabled if settings.Config.Force_WPAD_Auth else disabled))
 	print('    %-27s' % "Force Basic Auth" + (enabled if settings.Config.Basic else disabled))
 	print('    %-27s' % "Force LM downgrade" + (enabled if settings.Config.LM_On_Off == True else disabled))
+	print('    %-27s' % "Force ESS downgrade" + (enabled if settings.Config.NOESS_On_Off == True or settings.Config.LM_On_Off == True else disabled))
 	print('    %-27s' % "Fingerprint hosts" + (enabled if settings.Config.Finger_On_Off == True else disabled))
 	print('')
 
@@ -428,3 +430,4 @@ def StartupMessage():
 	print('    %-27s' % "Responder Machine Name" + color('[%s]' % settings.Config.MachineName, 5, 1))
 	print('    %-27s' % "Responder Domain Name" + color('[%s]' % settings.Config.DomainName, 5, 1))
 	print('    %-27s' % "Responder DCE-RPC Port " + color('[%s]' % settings.Config.RPCPort, 5, 1))
+
