@@ -16,7 +16,7 @@ The concept behind this is to target our answers, and be stealthier on the netwo
 
 - Built-in SMB Auth server.
 	
-Supports NTLMv1, NTLMv2 hashes with Extended Security NTLMSSP by default. Successfully tested from Windows 95 to Server 2022, Samba and Mac OSX Lion. Clear text password is supported for NT4, and LM hashing downgrade when the --lm option is set. SMBv2 has also been implemented and is supported by default.
+Supports NTLMv1, NTLMv2 hashes with Extended Security NTLMSSP by default. Successfully tested from Windows 95 to Server 2022, Samba and Mac OSX Lion. Clear text password is supported for NT4, and LM hashing downgrade when the --lm option is set. If --disable-ess is set, extended session security will be disabled for NTLMv1 authentication. SMBv2 has also been implemented and is supported by default.
 
 - Built-in MSSQL Auth server.
 
@@ -163,6 +163,7 @@ Options:
                                 with -r. Default: Off
 	  --lm                  Force LM hashing downgrade for Windows XP/2003 and
 	                        earlier. Default: Off
+	  --disable-ess         Force ESS downgrade. Default: Off
 	  -v, --verbose         Increase verbosity.
 	
 
