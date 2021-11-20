@@ -22,22 +22,24 @@ from odict import OrderedDict
 import errno
 import optparse
 from RunFingerPackets import *
-__version__ = "1.5"
+__version__ = "1.6"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
 parser.add_option('-i','--ip', action="store", help="Target IP address or class C", dest="TARGET", metavar="10.10.10.224", default=None)
+parser.add_option('-f','--filename', action="store", help="target file", dest="Filename", metavar="ips.txt", default=None)
 #Way better to have grepable output by default...
 #parser.add_option('-g','--grep', action="store_true", dest="grep_output", default=False, help="Output in grepable format")
 options, args = parser.parse_args()
 
-if options.TARGET is None:
+if options.TARGET == None and options.Filename == None:
     print("\n-i Mandatory option is missing, please provide a target or target range.\n")
     parser.print_help()
     exit(-1)
 
 Timeout = 1
 Host = options.TARGET
+Filename = options.Filename
 SMB1 = "Enabled"
 SMB2signing = "False"
 
@@ -386,20 +388,42 @@ def IsRDPOn(Host):
         return False
 
 def RunFinger(Host):
-    m = re.search("/", str(Host))
-    if m:
-        net,_,mask = Host.partition('/')
-        mask = int(mask)
-        net = atod(net)
-        threads = []
-        Pool = multiprocessing.Pool(processes=250)
-        func = ShowSmallResults
-        for host in (dtoa(net+n) for n in range(0, 1<<32-mask)):
-            proc = Pool.apply_async(func, ((host),))
-            threads.append(proc)
-        for proc in threads:
-            proc.get()
-    else:
-        ShowSmallResults(Host)
-
+    if Filename != None:
+       with open(Filename) as fp:
+           Line = fp.read().splitlines()
+           for Ln in Line:
+               m = re.search("/", str(Ln))
+               if m:
+                    net,_,mask = Ln.partition('/')
+                    mask = int(mask)
+                    net = atod(net)
+                    threads = []
+                    Pool = multiprocessing.Pool(processes=250)
+                    func = ShowSmallResults
+                    for host in (dtoa(net+n) for n in range(0, 1<<32-mask)):
+                        proc = Pool.apply_async(func, ((host),))
+                        threads.append(proc)
+                    for proc in threads:
+                        proc.get()
+               else:
+                    ShowSmallResults(Ln)
+                    
+    if Filename == None:
+       m = re.search("/", str(Host))
+       if m:
+           net,_,mask = Host.partition('/')
+           mask = int(mask)
+           net = atod(net)
+           threads = []
+           Pool = multiprocessing.Pool(processes=250)
+           func = ShowSmallResults
+           for host in (dtoa(net+n) for n in range(0, 1<<32-mask)):
+               proc = Pool.apply_async(func, ((host),))
+               threads.append(proc)
+           for proc in threads:
+               proc.get()
+       else:
+           ShowSmallResults(Host)
+           
+           
 RunFinger(Host)
