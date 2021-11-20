@@ -22,7 +22,7 @@ from odict import OrderedDict
 import errno
 import optparse
 from RunFingerPackets import *
-__version__ = "1.3"
+__version__ = "1.5"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
@@ -36,7 +36,7 @@ if options.TARGET is None:
     parser.print_help()
     exit(-1)
 
-Timeout = 2
+Timeout = 1
 Host = options.TARGET
 SMB1 = "Enabled"
 SMB2signing = "False"
@@ -295,7 +295,7 @@ def check_smb_null_session(host):
 def ConnectAndChoseSMB(host):
 	try:
 		s = socket(AF_INET, SOCK_STREAM)
-		s.settimeout(0.7)
+		s.settimeout(Timeout)
 		s.connect(host)
 	except:
 		return None
@@ -392,19 +392,14 @@ def RunFinger(Host):
         mask = int(mask)
         net = atod(net)
         threads = []
-        """
-        if options.grep_output:
-            func = ShowSmallResults
-        else:
-            func = ShowResults
-        """
+        Pool = multiprocessing.Pool(processes=250)
         func = ShowSmallResults
         for host in (dtoa(net+n) for n in range(0, 1<<32-mask)):
-            p = multiprocessing.Process(target=func, args=((host),))
-            threads.append(p)
-            p.start()
+            proc = Pool.apply_async(func, ((host),))
+            threads.append(proc)
+        for proc in threads:
+            proc.get()
     else:
         ShowSmallResults(Host)
-
 
 RunFinger(Host)
