@@ -85,7 +85,7 @@ All hashes are printed to stdout and dumped in a unique John Jumbo compliant fil
 Log files are located in the "logs/" folder. Hashes will be logged and printed only once per user per hash type, unless you are using the Verbose mode (-v).
 
 - Responder will log all its activity to Responder-Session.log
-- Analyze mode will be logged to Analyze-Session.log
+- Analyze mode will be logged to Analyzer-Session.log
 - Poisoning will be logged to Poisoners-Session.log
 
 Additionally, all captured hashed are logged into an SQLite database which you can configure in Responder.conf
