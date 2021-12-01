@@ -90,9 +90,13 @@ Respond_To_Requests = True
 DHCPClient          = []
 
 def GetMacAddress(Interface):
-	mac = netifaces.ifaddresses(Interface)[netifaces.AF_LINK][0]['addr']
-	return binascii.unhexlify(mac.replace(':', '')).decode('latin-1')
-
+	try:
+		mac = netifaces.ifaddresses(Interface)[netifaces.AF_LINK][0]['addr']
+		return binascii.unhexlify(mac.replace(':', '')).decode('latin-1')
+	except:
+		mac = "00:00:00:00:00:00"
+		return binascii.unhexlify(mac.replace(':', '')).decode('latin-1')
+		
 ##### IP Header #####
 class IPHead(Packet):
     fields = OrderedDict([
