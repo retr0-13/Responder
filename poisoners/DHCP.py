@@ -263,6 +263,11 @@ def ParseDHCPCode(data, ClientIP):
                 Buffer.calculate()
                 SendDHCP(str(IP_Header)+str(Buffer), (IPConv, 68))
                 DHCPClient.append(MacAddrStr)
+                SaveDHCPToDb({
+                              'MAC': MacAddrStr, 
+                              'IP': CurrentIP, 
+                              'RequestedIP': IPConv,
+                             })
                 return 'Acknowledged DHCP Request for IP: %s, Req IP: %s, MAC: %s' % (CurrentIP, IPConv, MacAddrStr)
 
     elif OpCode == b"\x01" and Respond_To_Requests:  # DHCP Discover
@@ -277,6 +282,11 @@ def ParseDHCPCode(data, ClientIP):
                 Buffer.calculate()
                 SendDHCP(str(IP_Header)+str(Buffer), (IPConv, 0))
                 DHCPClient.append(MacAddrStr)
+                SaveDHCPToDb({
+                              'MAC': MacAddrStr, 
+                              'IP': CurrentIP, 
+                              'RequestedIP': IPConv,
+                             })
                 return 'Acknowledged DHCP Discover for IP: %s, Req IP: %s, MAC: %s' % (CurrentIP, IPConv, MacAddrStr)
 
 def SendDiscover():

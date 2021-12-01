@@ -210,6 +210,8 @@ def CreateResponderDb():
 		cursor.commit()
 		cursor.execute('CREATE TABLE responder (timestamp TEXT, module TEXT, type TEXT, client TEXT, hostname TEXT, user TEXT, cleartext TEXT, hash TEXT, fullhash TEXT)')
 		cursor.commit()
+		cursor.execute('CREATE TABLE DHCP (timestamp TEXT, MAC TEXT, IP TEXT, RequestedIP TEXT)')
+		cursor.commit()
 		cursor.close()
 
 def SaveToDb(result):
@@ -305,7 +307,22 @@ def SavePoisonersToDb(result):
 
 	cursor.close()
 
+def SaveDHCPToDb(result):
+	for k in [ 'MAC', 'IP', 'RequestedIP']:
+		if not k in result:
+			result[k] = ''
 
+	cursor = sqlite3.connect(settings.Config.DatabaseFile)
+	cursor.text_factory = sqlite3.Binary  # We add a text factory to support different charsets
+	res = cursor.execute("SELECT COUNT(*) AS count FROM DHCP WHERE MAC=? AND IP=? AND RequestedIP=?", (result['MAC'], result['IP'], result['RequestedIP']))
+	(count,) = res.fetchone()
+        
+	if not count:
+		cursor.execute("INSERT INTO DHCP VALUES(datetime('now'), ?, ?, ?)", (result['MAC'], result['IP'], result['RequestedIP']))
+		cursor.commit()
+
+	cursor.close()
+	
 def Parse_IPV6_Addr(data):
 	if data[len(data)-4:len(data)][1] ==b'\x1c':
 		return False

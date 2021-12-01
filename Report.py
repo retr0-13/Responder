@@ -39,7 +39,7 @@ def GetResponderData(cursor):
 def GetResponderUsernamesStatistic(cursor):
      res = cursor.execute("SELECT COUNT(DISTINCT UPPER(user)) FROM Responder")
      for row in res.fetchall():
-         print(color('[+] In total {0} unique user accounts were captured.'.format(row[0]), code = 2, modifier = 1))
+         print(color('\n[+] In total {0} unique user accounts were captured.'.format(row[0]), code = 2, modifier = 1))
 
 def GetResponderUsernames(cursor):
      res = cursor.execute("SELECT DISTINCT user FROM Responder")
@@ -62,11 +62,15 @@ def GetUniqueLookups(cursor):
      for row in res.fetchall():
          print('IP: {0}, Protocol: {1}, Looking for name: {2}'.format(row[2], row[1], row[3]))
 
-
+def GetUniqueDHCP(cursor):
+     res = cursor.execute("SELECT * FROM DHCP WHERE MAC in (SELECT DISTINCT UPPER(MAC) FROM DHCP)")
+     for row in res.fetchall():
+         print('MAC: {0}, IP: {1}, RequestedIP: {2}'.format(row[1], row[2], row[3]))
+         
 def GetStatisticUniqueLookups(cursor):
      res = cursor.execute("SELECT COUNT(*) FROM Poisoned WHERE ForName in (SELECT DISTINCT UPPER(ForName) FROM Poisoned)")
      for row in res.fetchall():
-         print(color('[+] In total {0} unique queries were poisoned.'.format(row[0]), code = 2, modifier = 1))
+         print(color('\n[+] In total {0} unique queries were poisoned.'.format(row[0]), code = 2, modifier = 1))
 
 
 def SavePoisonersToDb(result):
@@ -82,8 +86,11 @@ def SaveToDb(result):
 			result[k] = ''
 
 cursor = DbConnect()
-print(color("[+] Generating report...", code = 3, modifier = 1))
-print(color("[+] Unique lookups ordered by IP:", code = 2, modifier = 1))
+print(color("[+] Generating report...\n", code = 3, modifier = 1))
+
+print(color("[+] DHCP Query Poisoned:", code = 2, modifier = 1))
+GetUniqueDHCP(cursor)
+print(color("\n[+] Unique lookups ordered by IP:", code = 2, modifier = 1))
 GetUniqueLookups(cursor)
 GetStatisticUniqueLookups(cursor)
 print(color("\n[+] Extracting captured usernames:", code = 2, modifier = 1))
