@@ -22,14 +22,14 @@ from odict import OrderedDict
 import errno
 import optparse
 from RunFingerPackets import *
-__version__ = "1.6"
+__version__ = "1.7"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
 parser.add_option('-i','--ip', action="store", help="Target IP address or class C", dest="TARGET", metavar="10.10.10.224", default=None)
-parser.add_option('-f','--filename', action="store", help="target file", dest="Filename", metavar="ips.txt", default=None)
-#Way better to have grepable output by default...
-#parser.add_option('-g','--grep', action="store_true", dest="grep_output", default=False, help="Output in grepable format")
+parser.add_option('-f','--filename', action="store", help="Target file", dest="Filename", metavar="ips.txt", default=None)
+parser.add_option('-t','--timeout', action="store", help="Timeout for all connections. Use this option to fine tune Runfinger.", dest="Timeout", type="float", metavar="0.9", default=2)
+
 options, args = parser.parse_args()
 
 if options.TARGET == None and options.Filename == None:
@@ -37,7 +37,8 @@ if options.TARGET == None and options.Filename == None:
     parser.print_help()
     exit(-1)
 
-Timeout = 1
+Timeout = options.Timeout
+print('Timeout is: ', Timeout)
 Host = options.TARGET
 Filename = options.Filename
 SMB1 = "Enabled"
