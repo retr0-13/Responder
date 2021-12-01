@@ -38,7 +38,6 @@ if options.TARGET == None and options.Filename == None:
     exit(-1)
 
 Timeout = options.Timeout
-print('Timeout is: ', Timeout)
 Host = options.TARGET
 Filename = options.Filename
 SMB1 = "Enabled"
