@@ -194,14 +194,13 @@ def GetHostnameAndDomainName(data):
             Hostname = data[113:].decode('latin-1')
         return Hostname, DomainJoined
     except:
-        pass
         return "Could not get Hostname.", "Could not get Domain joined"
 
 def DomainGrab(Host):
 	global SMB1
+	s = socket(AF_INET, SOCK_STREAM)
+	s.settimeout(Timeout)
 	try:
-		s = socket(AF_INET, SOCK_STREAM)
-		s.settimeout(0.7)
 		s.connect(Host)
 		h = SMBHeaderLanMan(cmd="\x72",mid="\x01\x00",flag1="\x00", flag2="\x00\x00")
 		n = SMBNegoDataLanMan()
@@ -221,11 +220,12 @@ def DomainGrab(Host):
 
 def SmbFinger(Host):
     s = socket(AF_INET, SOCK_STREAM)
+    s.settimeout(Timeout)
     try:
-        s.settimeout(Timeout)
         s.connect(Host)
     except:
         pass
+
     try:
         h = SMBHeader(cmd="\x72",flag1="\x18",flag2="\x53\xc8")
         n = SMBNego(Data = SMBNegoData())
@@ -250,8 +250,8 @@ def SmbFinger(Host):
 
 def check_smb_null_session(host):
     s = socket(AF_INET, SOCK_STREAM)
+    s.settimeout(Timeout)
     try:
-        s.settimeout(Timeout)
         s.connect(host)
         h = SMBHeader(cmd="\x72",flag1="\x18", flag2="\x53\xc8")
         n = SMBNego(Data = SMBNegoData())
@@ -295,12 +295,12 @@ def check_smb_null_session(host):
 #SMB2 part:
 
 def ConnectAndChoseSMB(host):
+	s = socket(AF_INET, SOCK_STREAM)
+	s.settimeout(Timeout)
 	try:
-		s = socket(AF_INET, SOCK_STREAM)
-		s.settimeout(Timeout)
 		s.connect(host)
 	except:
-		return None
+		return False
 	h = SMBHeader(cmd="\x72",flag1="\x00")
 	n = SMBNego(Data = SMB2NegoData())
 	n.calculate()
@@ -347,22 +347,6 @@ def handle(data, host):
 
 ##################
 #run it
-def ShowResults(Host):
-	if ConnectAndChoseSMB((Host,445)) == False:
-		try:
-			Hostname, DomainJoined = DomainGrab((Host, 445))
-			Signing, OsVer, LanManClient = SmbFinger((Host, 445))
-			NullSess = check_smb_null_session((Host, 445))
-			print(("Retrieving information for %s..."%(Host)))
-			print(("SMB signing: %s"%(Signing)))
-			print(("Null Sessions Allowed: %s"%(NullSess)))
-			print(("OS version: '%s'\nLanman Client: '%s'"%(OsVer, LanManClient)))
-			print(("Machine Hostname: '%s'\nThis machine is part of the '%s' domain"%(Hostname, DomainJoined)))
-			print(("RDP port open: '%s'\n"%(IsRDPOn((Host,3389)))))
-		except:
-			return False
-
-
 def ShowSmallResults(Host):
 	if ConnectAndChoseSMB((Host,445)) == False:
 		try:
@@ -376,8 +360,8 @@ def ShowSmallResults(Host):
 
 def IsRDPOn(Host):
     s = socket(AF_INET, SOCK_STREAM)
+    s.settimeout(Timeout)
     try:
-        s.settimeout(Timeout)
         s.connect(Host)
         if s:
             return True
