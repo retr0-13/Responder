@@ -109,6 +109,9 @@ GetResponderUsernamesWithDetails(cursor)
 GetResponderUsernamesStatistic(cursor)
 print color("\n[+] RunFinger Scanned Hosts:", code = 2, modifier = 1)
 cursor.close()
-cursor = FingerDbConnect()
-GetRunFinger(cursor)
+try:
+	cursor = FingerDbConnect()
+	GetRunFinger(cursor)
+except:
+	pass
 print('\n')
