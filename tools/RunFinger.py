@@ -17,11 +17,15 @@
 import re,sys,struct
 import datetime
 import multiprocessing
-from socket import *
-from odict import OrderedDict
+import os
 import errno
 import optparse
+import sqlite3
 from RunFingerPackets import *
+from odict import OrderedDict
+from socket import *
+from odict import OrderedDict
+
 __version__ = "1.7"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
@@ -42,6 +46,7 @@ Host = options.TARGET
 Filename = options.Filename
 SMB1 = "Enabled"
 SMB2signing = "False"
+DB = os.path.abspath(os.path.join(os.path.dirname(__file__)))+"/RunFinger.db"
 
 class Packet():
     fields = OrderedDict([
@@ -61,6 +66,13 @@ if (sys.version_info > (3, 0)):
     PY2OR3     = "PY3"
 else:
     PY2OR3  = "PY2"
+
+
+if not os.path.exists(DB):
+	cursor = sqlite3.connect(DB)
+	cursor.execute('CREATE TABLE RunFinger (timestamp TEXT, Protocol TEXT, Host TEXT, WindowsVersion TEXT, OsVer TEXT, DomainJoined TEXT, Bootime TEXT, Signing TEXT, NullSess TEXT, IsRDPOn TEXT)')
+	cursor.commit()
+	cursor.close()
 
 def StructWithLenPython2or3(endian,data):
     #Python2...
@@ -117,7 +129,23 @@ def WorkstationFingerPrint(data):
 def GetOsBuildNumber(data):
 	ProductBuild =  struct.unpack("<h",data)[0]
 	return ProductBuild 
+		
+def SaveRunFingerToDb(result):
+	for k in [ 'Protocol', 'Host', 'WindowsVersion', 'OsVer', 'DomainJoined', 'Bootime', 'Signing','NullSess', 'IsRPDOn']:
+		if not k in result:
+			result[k] = ''
 
+	cursor = sqlite3.connect(DB)
+	cursor.text_factory = sqlite3.Binary
+	res = cursor.execute("SELECT COUNT(*) AS count FROM RunFinger WHERE Protocol=? AND Host=? AND WindowsVersion=? AND OsVer=? AND DomainJoined=? AND Bootime=? AND Signing=? AND NullSess=? AND IsRDPOn=?", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn']))
+	(count,) = res.fetchone()
+        
+	if not count:
+		cursor.execute("INSERT INTO RunFinger VALUES(datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?)", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn']))
+		cursor.commit()
+
+	cursor.close()
+		
 def ParseSMBNTLM2Exchange(data, host, bootime, signing):  #Parse SMB NTLMSSP Response
 	data = data.encode('latin-1')
 	SSPIStart  = data.find(b'NTLMSSP')
@@ -132,7 +160,19 @@ def ParseSMBNTLM2Exchange(data, host, bootime, signing):  #Parse SMB NTLMSSP Res
 	WindowsVers       = WorkstationFingerPrint(data[SSPIStart+48:SSPIStart+50])
 	WindowsBuildVers  = GetOsBuildNumber(data[SSPIStart+50:SSPIStart+52])
 	DomainGrab((host, 445))
-	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', Signing:'{}', RDP:'{}', SMB1:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, signing, IsRDPOn((host,3389)),SMB1)))
+	RDP = IsRDPOn((host,3389))
+	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', Signing:'{}', RDP:'{}', SMB1:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, signing, RDP,SMB1)))
+	SaveRunFingerToDb({
+				'Protocol': '[SMB2]',
+				'Host': host, 
+				'WindowsVersion': WindowsVers,
+				'OsVer': str(WindowsBuildVers),
+				'DomainJoined': Domain,
+				'Bootime': Bootime,
+				'Signing': signing,
+				'NullSess': 'N/A',
+				'IsRDPOn':RDP, 
+				})
 
 def GetBootTime(data):
 	data = data.encode('latin-1')
@@ -159,9 +199,9 @@ def IsDCVuln(t, host):
 
 def IsSigningEnabled(data):
     if data[39] == "\x0f":
-        return True
+        return 'True'
     else:
-        return False
+        return 'False'
 
 def atod(a):
     return struct.unpack("!L",inet_aton(a))[0]
@@ -285,9 +325,9 @@ def check_smb_null_session(host):
             s.send(NetworkSendBufferPython2or3(buffer0))
             data = s.recv(2048)
         if data[8:10] == b'\x75\x00':
-            return True
+            return 'True'
         else:
-            return False
+            return 'False'
     except Exception:
         return False
 
@@ -346,14 +386,25 @@ def handle(data, host):
 		ParseSMBNTLM2Exchange(data, host[0], Bootime, SMB2signing) 
 
 ##################
-#run it
 def ShowSmallResults(Host):
 	if ConnectAndChoseSMB((Host,445)) == False:
 		try:
 			Hostname, DomainJoined = DomainGrab((Host, 445))
 			Signing, OsVer, LanManClient = SmbFinger((Host, 445))
 			NullSess = check_smb_null_session((Host, 445))
-			print(("[SMB1]:['{}', Os:'{}', Domain:'{}', Signing:'{}', Null Session: '{}', RDP:'{}']".format(Host, OsVer, DomainJoined, Signing, NullSess,IsRDPOn((Host,3389)))))
+			RDP = IsRDPOn((Host,3389))
+			print(("[SMB1]:['{}', Os:'{}', Domain:'{}', Signing:'{}', Null Session: '{}', RDP:'{}']".format(Host, OsVer, DomainJoined, Signing, NullSess,RDP)))
+			SaveRunFingerToDb({
+				'Protocol': '[SMB1]',
+				'Host': Host, 
+				'WindowsVersion':OsVer,
+				'OsVer': OsVer,
+				'DomainJoined':DomainJoined,
+				'Bootime': 'N/A',
+				'Signing': Signing,
+				'NullSess': NullSess,
+				'IsRDPOn':RDP, 
+				})
 		except:
 			return False
 
@@ -364,12 +415,12 @@ def IsRDPOn(Host):
     try:
         s.connect(Host)
         if s:
-            return True
+            return 'True'
         else:
-            return False
+            return 'False'
 
     except Exception as err:
-        return False
+        return 'False'
 
 def RunFinger(Host):
     if Filename != None:

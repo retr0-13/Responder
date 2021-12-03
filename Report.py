@@ -31,6 +31,10 @@ def DbConnect():
     cursor = sqlite3.connect("./Responder.db")
     return cursor
 
+def FingerDbConnect():
+    cursor = sqlite3.connect("./tools/RunFinger.db")
+    return cursor
+    
 def GetResponderData(cursor):
      res = cursor.execute("SELECT * FROM Responder")
      for row in res.fetchall():
@@ -66,7 +70,12 @@ def GetUniqueDHCP(cursor):
      res = cursor.execute("SELECT * FROM DHCP WHERE MAC in (SELECT DISTINCT UPPER(MAC) FROM DHCP)")
      for row in res.fetchall():
          print('MAC: {0}, IP: {1}, RequestedIP: {2}'.format(row[1], row[2], row[3]))
-         
+
+def GetRunFinger(cursor):
+     res = cursor.execute("SELECT * FROM RunFinger WHERE Host in (SELECT DISTINCT Host FROM RunFinger)")
+     for row in res.fetchall():
+         print(("{},['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime:'{}', Signing:'{}', Null Session: '{}', RDP:'{}']".format(row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9])))
+
 def GetStatisticUniqueLookups(cursor):
      res = cursor.execute("SELECT COUNT(*) FROM Poisoned WHERE ForName in (SELECT DISTINCT UPPER(ForName) FROM Poisoned)")
      for row in res.fetchall():
@@ -98,5 +107,8 @@ GetResponderUsernames(cursor)
 print(color("\n[+] Username details:", code = 2, modifier = 1))
 GetResponderUsernamesWithDetails(cursor)
 GetResponderUsernamesStatistic(cursor)
-#print color("\n[+] Captured hashes:", code = 2, modifier = 1)
-#GetResponderCompleteHash(cursor)
+print color("\n[+] RunFinger Scanned Hosts:", code = 2, modifier = 1)
+cursor.close()
+cursor = FingerDbConnect()
+GetRunFinger(cursor)
+print('\n')
