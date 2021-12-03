@@ -252,7 +252,14 @@ class Settings:
 
 		self.AnalyzeLogger = logging.getLogger('Analyze Log')
 		self.AnalyzeLogger.addHandler(ALog_Handler)
-                
+		
+		# First time Responder run?
+		if os.path.isfile(self.ResponderPATH+'/Responder.db'):
+			pass
+		else:
+			#If it's the first time, generate SSL certs for this Responder session and send openssl output to /dev/null
+			Certs = os.system("./certs/gen-self-signed-cert.sh >/dev/null 2>&1")
+		
 		try:
 			NetworkCard = subprocess.check_output(["ifconfig", "-a"])
 		except:
