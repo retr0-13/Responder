@@ -383,9 +383,10 @@ def StartupMessage():
 
 	print('')
 	print(color("[+] ", 2, 1) + "Poisoners:")
-	print('    %-27s' % "LLMNR" + enabled)
-	print('    %-27s' % "NBT-NS" + enabled)
-	print('    %-27s' % "DNS/MDNS" + enabled)
+	print('    %-27s' % "LLMNR" + (enabled if settings.Config.AnalyzeMode == False else disabled))
+	print('    %-27s' % "NBT-NS" + (enabled if settings.Config.AnalyzeMode == False else disabled))
+	print('    %-27s' % "MDNS" + (enabled if settings.Config.AnalyzeMode == False else disabled))
+	print('    %-27s' % "DNS" + enabled)
 	print('    %-27s' % "DHCP" + (enabled if settings.Config.DHCP_On_Off else disabled))
 	print('')
 
