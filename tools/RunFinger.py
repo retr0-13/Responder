@@ -339,15 +339,15 @@ def ConnectAndChoseSMB(host):
 	s.settimeout(Timeout)
 	try:
 		s.connect(host)
+		h = SMBHeader(cmd="\x72",flag1="\x00")
+		n = SMBNego(Data = SMB2NegoData())
+		n.calculate()
+		packet0 = str(h)+str(n)
+		buffer0 = longueur(packet0)+packet0
+		s.send(NetworkSendBufferPython2or3(buffer0))
+		data = s.recv(4096)
 	except:
 		return False
-	h = SMBHeader(cmd="\x72",flag1="\x00")
-	n = SMBNego(Data = SMB2NegoData())
-	n.calculate()
-	packet0 = str(h)+str(n)
-	buffer0 = longueur(packet0)+packet0
-	s.send(NetworkSendBufferPython2or3(buffer0))
-	data = s.recv(4096)
 	if ParseNegotiateSMB2Ans(data):
 		try:
 			while True:
