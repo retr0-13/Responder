@@ -26,7 +26,7 @@ from odict import OrderedDict
 from socket import *
 from odict import OrderedDict
 
-__version__ = "1.7"
+__version__ = "1.8"
 
 parser = optparse.OptionParser(usage='python %prog -i 10.10.10.224\nor:\npython %prog -i 10.10.10.0/24', version=__version__, prog=sys.argv[0])
 
@@ -44,7 +44,7 @@ if options.TARGET == None and options.Filename == None:
 Timeout = options.Timeout
 Host = options.TARGET
 Filename = options.Filename
-SMB1 = "Enabled"
+SMB1 = "True"
 SMB2signing = "False"
 DB = os.path.abspath(os.path.join(os.path.dirname(__file__)))+"/RunFinger.db"
 
@@ -70,7 +70,7 @@ else:
 
 if not os.path.exists(DB):
 	cursor = sqlite3.connect(DB)
-	cursor.execute('CREATE TABLE RunFinger (timestamp TEXT, Protocol TEXT, Host TEXT, WindowsVersion TEXT, OsVer TEXT, DomainJoined TEXT, Bootime TEXT, Signing TEXT, NullSess TEXT, IsRDPOn TEXT)')
+	cursor.execute('CREATE TABLE RunFinger (timestamp TEXT, Protocol TEXT, Host TEXT, WindowsVersion TEXT, OsVer TEXT, DomainJoined TEXT, Bootime TEXT, Signing TEXT, NullSess TEXT, IsRDPOn TEXT, SMB1 TEXT, MSSQL TEXT)')
 	cursor.commit()
 	cursor.close()
 
@@ -131,17 +131,17 @@ def GetOsBuildNumber(data):
 	return ProductBuild 
 		
 def SaveRunFingerToDb(result):
-	for k in [ 'Protocol', 'Host', 'WindowsVersion', 'OsVer', 'DomainJoined', 'Bootime', 'Signing','NullSess', 'IsRPDOn']:
+	for k in [ 'Protocol', 'Host', 'WindowsVersion', 'OsVer', 'DomainJoined', 'Bootime', 'Signing','NullSess', 'IsRPDOn', 'SMB1','MSSQL']:
 		if not k in result:
 			result[k] = ''
 
 	cursor = sqlite3.connect(DB)
 	cursor.text_factory = sqlite3.Binary
-	res = cursor.execute("SELECT COUNT(*) AS count FROM RunFinger WHERE Protocol=? AND Host=? AND WindowsVersion=? AND OsVer=? AND DomainJoined=? AND Bootime=? AND Signing=? AND NullSess=? AND IsRDPOn=?", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn']))
+	res = cursor.execute("SELECT COUNT(*) AS count FROM RunFinger WHERE Protocol=? AND Host=? AND WindowsVersion=? AND OsVer=? AND DomainJoined=? AND Bootime=? AND Signing=? AND NullSess=? AND IsRDPOn=? AND SMB1=? AND MSSQL=?", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn'], result['SMB1'], result['MSSQL']))
 	(count,) = res.fetchone()
         
 	if not count:
-		cursor.execute("INSERT INTO RunFinger VALUES(datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?)", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn']))
+		cursor.execute("INSERT INTO RunFinger VALUES(datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)", (result['Protocol'], result['Host'], result['WindowsVersion'], result['OsVer'], result['DomainJoined'], result['Bootime'], result['Signing'], result['NullSess'], result['IsRDPOn'], result['SMB1'], result['MSSQL']))
 		cursor.commit()
 
 	cursor.close()
@@ -160,8 +160,9 @@ def ParseSMBNTLM2Exchange(data, host, bootime, signing):  #Parse SMB NTLMSSP Res
 	WindowsVers       = WorkstationFingerPrint(data[SSPIStart+48:SSPIStart+50])
 	WindowsBuildVers  = GetOsBuildNumber(data[SSPIStart+50:SSPIStart+52])
 	DomainGrab((host, 445))
-	RDP = IsRDPOn((host,3389))
-	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', Signing:'{}', RDP:'{}', SMB1:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, signing, RDP,SMB1)))
+	RDP = IsServiceOn((host,3389))
+	SQL = IsServiceOn((host,1433))
+	print(("[SMB2]:['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime: '{}', Signing:'{}', RDP:'{}', SMB1:'{}', MSSQL:'{}']".format(host, WindowsVers, str(WindowsBuildVers), Domain, Bootime, signing, RDP,SMB1, SQL)))
 	SaveRunFingerToDb({
 				'Protocol': '[SMB2]',
 				'Host': host, 
@@ -171,7 +172,9 @@ def ParseSMBNTLM2Exchange(data, host, bootime, signing):  #Parse SMB NTLMSSP Res
 				'Bootime': Bootime,
 				'Signing': signing,
 				'NullSess': 'N/A',
-				'IsRDPOn':RDP, 
+				'IsRDPOn':RDP,
+				'SMB1': SMB1,
+				'MSSQL': SQL
 				})
 
 def GetBootTime(data):
@@ -193,7 +196,7 @@ def IsDCVuln(t, host):
 	Date = datetime.datetime(2017, 3, 14, 0, 30)
 	if t[0] < Date:
 		return("This system may be vulnerable to MS17-010")
-	return("Last restart: "+t[1])
+	return(t[1])
 
 #####################
 
@@ -253,7 +256,7 @@ def DomainGrab(Host):
 			return GetHostnameAndDomainName(data)
 	except IOError as e:
 		if e.errno == errno.ECONNRESET:
-			SMB1 = "Disabled"
+			SMB1 = "False"
 			return False
 		else:
 			return False
@@ -392,8 +395,9 @@ def ShowSmallResults(Host):
 			Hostname, DomainJoined = DomainGrab((Host, 445))
 			Signing, OsVer, LanManClient = SmbFinger((Host, 445))
 			NullSess = check_smb_null_session((Host, 445))
-			RDP = IsRDPOn((Host,3389))
-			print(("[SMB1]:['{}', Os:'{}', Domain:'{}', Signing:'{}', Null Session: '{}', RDP:'{}']".format(Host, OsVer, DomainJoined, Signing, NullSess,RDP)))
+			RDP = IsServiceOn((Host,3389))
+			SQL = IsServiceOn((Host,1433))
+			print(("[SMB1]:['{}', Os:'{}', Domain:'{}', Signing:'{}', Null Session: '{}', RDP:'{}', MSSQL:'{}']".format(Host, OsVer, DomainJoined, Signing, NullSess,RDP, SQL)))
 			SaveRunFingerToDb({
 				'Protocol': '[SMB1]',
 				'Host': Host, 
@@ -403,13 +407,15 @@ def ShowSmallResults(Host):
 				'Bootime': 'N/A',
 				'Signing': Signing,
 				'NullSess': NullSess,
-				'IsRDPOn':RDP, 
+				'IsRDPOn':RDP,
+				'SMB1': 'True',
+				'MSSQL': SQL
 				})
 		except:
 			return False
 
 
-def IsRDPOn(Host):
+def IsServiceOn(Host):
     s = socket(AF_INET, SOCK_STREAM)
     s.settimeout(Timeout)
     try:
@@ -421,6 +427,7 @@ def IsRDPOn(Host):
 
     except Exception as err:
         return 'False'
+
 
 def RunFinger(Host):
     if Filename != None:

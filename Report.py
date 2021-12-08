@@ -74,7 +74,7 @@ def GetUniqueDHCP(cursor):
 def GetRunFinger(cursor):
      res = cursor.execute("SELECT * FROM RunFinger WHERE Host in (SELECT DISTINCT Host FROM RunFinger)")
      for row in res.fetchall():
-         print(("{},['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime:'{}', Signing:'{}', Null Session: '{}', RDP:'{}']".format(row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9])))
+         print(("{},['{}', Os:'{}', Build:'{}', Domain:'{}', Bootime:'{}', Signing:'{}', Null Session: '{}', RDP:'{}', SMB1:'{}', MSSQL:'{}']".format(row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11])))
 
 def GetStatisticUniqueLookups(cursor):
      res = cursor.execute("SELECT COUNT(*) FROM Poisoned WHERE ForName in (SELECT DISTINCT UPPER(ForName) FROM Poisoned)")
