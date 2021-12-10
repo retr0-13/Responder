@@ -128,6 +128,18 @@ def RespondWithIPAton():
 		else:
 			return settings.Config.IP_aton.decode('latin-1')
 
+def RespondWithIP():
+	if settings.Config.PY2OR3 == "PY2":
+		if settings.Config.ExternalIP:
+			return settings.Config.ExternalIP
+		else:
+			return settings.Config.Bind_To
+	else:
+		if settings.Config.ExternalIP:
+			return settings.Config.ExternalIP
+		else:
+			return settings.Config.Bind_To
+
 def OsInterfaceIsSupported():
 	if settings.Config.Interface != "Not set":
 		return not IsOsX()

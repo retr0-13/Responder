@@ -79,7 +79,7 @@ config.read(os.path.join(BASEDIR,'Responder.conf'))
 RespondTo           = [_f for _f in [x.upper().strip() for x in config.get('Responder Core', 'RespondTo').strip().split(',')] if _f]
 DontRespondTo       = [_f for _f in [x.upper().strip() for x in config.get('Responder Core', 'DontRespondTo').strip().split(',')] if _f]
 Interface           = settings.Config.Interface
-Responder_IP        = FindLocalIP(Interface, None)
+Responder_IP        = RespondWithIP()
 ROUTERIP            = Responder_IP # Set to Responder_IP in case we fall on a static IP network and we don't get a DHCP Offer. This var will be updated with the real dhcp IP if present.
 NETMASK             = "255.255.255.0"
 DNSIP               = "0.0.0.0"

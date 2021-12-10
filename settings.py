@@ -23,7 +23,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 3.0.8.0'
+__version__ = 'Responder 3.0.9.0'
 
 class Settings:
 	
@@ -131,11 +131,7 @@ class Settings:
 		self.Verbose            = options.Verbose
 		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
 		self.CommandLine        = str(sys.argv)
-
-		if self.ExternalIP:
-			self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
-
-		self.Bind_To         = utils.FindLocalIP(self.Interface, self.OURIP)
+		self.Bind_To            = utils.FindLocalIP(self.Interface, self.OURIP)
 
 		if self.Interface == "ALL":
                 	self.Bind_To_ALL  = True
@@ -146,6 +142,12 @@ class Settings:
 			self.IP_aton   = socket.inet_aton(self.OURIP)
 		else:
 			self.IP_aton   = socket.inet_aton(self.Bind_To)
+			
+		if self.ExternalIP:
+			self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
+			self.ExternalResponderIP = utils.RespondWithIP()
+		else:
+			self.ExternalResponderIP = self.Bind_To
 
 		self.Os_version      = sys.platform
 
