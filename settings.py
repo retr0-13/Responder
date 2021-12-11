@@ -284,7 +284,7 @@ class Settings:
 				RoutingInfo = "Error fetching Routing information:", ex
 				pass
 
-		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard.decode('latin-1'),DNS.decode('latin-1'),RoutingInfo.decode('latin-1'))
+		Message = "%s\nCurrent environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(utils.HTTPCurrentDate(), NetworkCard.decode('latin-1'),DNS.decode('latin-1'),RoutingInfo.decode('latin-1'))
 		try:
 			utils.DumpConfig(self.ResponderConfigDump, Message)
 			utils.DumpConfig(self.ResponderConfigDump,str(self))
