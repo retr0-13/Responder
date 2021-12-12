@@ -241,6 +241,7 @@ def serve_thread_SSL(host, port, handler):
 
 def main():
 	try:
+		print(color('\n[+]', 2, 1) + " Listening for events...\n")
 		threads = []
 
 		# Load (M)DNS, NBNS and LLMNR Poisoners
@@ -338,9 +339,6 @@ def main():
 		for thread in threads:
 			thread.setDaemon(True)
 			thread.start()
-
-
-		print(color('\n[+]', 2, 1) + " Listening for events...\n")
 
 		if settings.Config.AnalyzeMode:
 			print(color('[+] Responder is in analyze mode. No NBT-NS, LLMNR, MDNS requests will be poisoned.', 3, 1))
