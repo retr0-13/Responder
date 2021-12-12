@@ -34,6 +34,8 @@ parser.add_option('-e', "--externalip",    action="store",      help="Poison all
 parser.add_option('-b', '--basic',         action="store_true", help="Return a Basic HTTP authentication. Default: NTLM", dest="Basic", default=False)
 parser.add_option('-r', '--wredir',        action="store_true", help="Enable answers for netbios wredir suffix queries. Answering to wredir will likely break stuff on the network. Default: False", dest="Wredirect", default=False)
 parser.add_option('-d', '--DHCP',          action="store_true", help="Enable answers for DHCP broadcast requests. This option will inject a WPAD server in the DHCP response. Default: False", dest="DHCP_On_Off", default=False)
+parser.add_option('-W', '--DHCP-WPAD',     action="store_true", help="This option will inject a WPAD server in the DHCP response, otherwise it will be done via DNS. Default: False", dest="DHCP_WPAD", default=False)
+
 parser.add_option('-f','--fingerprint',    action="store_true", help="This option allows you to fingerprint a host that issued an NBT-NS or LLMNR query.", dest="Finger", default=False)
 parser.add_option('-w','--wpad',           action="store_true", help="Start the WPAD rogue proxy server. Default value is False", dest="WPAD_On_Off", default=False)
 parser.add_option('-u','--upstream-proxy', action="store",      help="Upstream HTTP proxy used by the rogue WPAD Proxy for outgoing requests (format: host:port)", dest="Upstream_Proxy", default=None)
@@ -345,7 +347,7 @@ def main():
 
 		if settings.Config.DHCP_On_Off:
 			from poisoners.DHCP import DHCP
-			DHCP()
+			DHCP(settings.Config.DHCP_WPAD)
 
 		while True:
 			time.sleep(1)

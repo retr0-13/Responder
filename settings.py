@@ -132,6 +132,7 @@ class Settings:
 		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
 		self.CommandLine        = str(sys.argv)
 		self.Bind_To            = utils.FindLocalIP(self.Interface, self.OURIP)
+		self.DHCP_WPAD          = options.DHCP_WPAD
 
 		if self.Interface == "ALL":
                 	self.Bind_To_ALL  = True

