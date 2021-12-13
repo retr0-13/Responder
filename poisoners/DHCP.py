@@ -85,7 +85,7 @@ ROUTERIP            = Responder_IP # Set to Responder_IP in case we fall on a st
 NETMASK             = "255.255.255.0"
 DNSIP               = "0.0.0.0"
 DNSIP2              = "0.0.0.0"
-DNSNAME             = "lan"
+DNSNAME             = "local"
 WPADSRV             = "http://"+Responder_IP+"/wpad.dat"
 Respond_To_Requests = True
 DHCPClient          = []
@@ -280,6 +280,26 @@ def ParseDHCPCode(data, ClientIP,DHCP_DNS):
                               'RequestedIP': IPConv,
                              })
                 return 'Acknowledged DHCP Request for IP: %s, Req IP: %s, MAC: %s' % (CurrentIP, IPConv, MacAddrStr)
+                
+    # DHCP Inform
+    elif OpCode == b"\x08":
+        IP_Header = IPHead(SrcIP = socket.inet_aton(ROUTERIP).decode('latin-1'), DstIP=socket.inet_aton(CurrentIP).decode('latin-1'))
+        Packet = DHCPACK(Tid=PTid.decode('latin-1'), ClientMac=MacAddr.decode('latin-1'), ActualClientIP=socket.inet_aton(CurrentIP).decode('latin-1'),
+                                                        GiveClientIP=socket.inet_aton("0.0.0.0").decode('latin-1'),
+                                                        NextServerIP=socket.inet_aton("0.0.0.0").decode('latin-1'),
+                                                        RelayAgentIP=socket.inet_aton("0.0.0.0").decode('latin-1'),
+                                                        ElapsedSec=Seconds.decode('latin-1'))
+        Packet.calculate(DHCP_DNS)
+        Buffer = UDP(Data = Packet)
+        Buffer.calculate()
+        SendDHCP(str(IP_Header)+str(Buffer), (CurrentIP, 68))
+        DHCPClient.append(MacAddrStr)
+        SaveDHCPToDb({
+                      'MAC': MacAddrStr, 
+                      'IP': CurrentIP, 
+                      'RequestedIP': RequestedIP,
+                      })
+        return 'Acknowledged DHCP Inform for IP: %s, Req IP: %s, MAC: %s' % (CurrentIP, RequestedIP, MacAddrStr)
 
     elif OpCode == b"\x01" and Respond_To_Requests:  # DHCP Discover
         IP = FindIP(data)
