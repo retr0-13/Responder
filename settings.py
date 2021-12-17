@@ -23,7 +23,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 3.1.0.0'
+__version__ = 'Responder 3.1.1.0'
 
 class Settings:
 	
@@ -83,7 +83,7 @@ class Settings:
 		# Config parsing
 		config = ConfigParser.ConfigParser()
 		config.read(os.path.join(self.ResponderPATH, 'Responder.conf'))
-
+		
 		# Servers
 		self.HTTP_On_Off     = self.toBool(config.get('Responder Core', 'HTTP'))
 		self.SSL_On_Off      = self.toBool(config.get('Responder Core', 'HTTPS'))
@@ -119,10 +119,8 @@ class Settings:
 		self.LM_On_Off          = options.LM_On_Off
 		self.NOESS_On_Off       = options.NOESS_On_Off
 		self.WPAD_On_Off        = options.WPAD_On_Off
-		self.Wredirect          = options.Wredirect
 		self.DHCP_On_Off        = options.DHCP_On_Off
 		self.Basic              = options.Basic
-		self.Finger_On_Off      = options.Finger
 		self.Interface          = options.Interface
 		self.OURIP              = options.OURIP
 		self.Force_WPAD_Auth    = options.Force_WPAD_Auth
@@ -132,23 +130,42 @@ class Settings:
 		self.ProxyAuth_On_Off   = options.ProxyAuth_On_Off
 		self.CommandLine        = str(sys.argv)
 		self.Bind_To            = utils.FindLocalIP(self.Interface, self.OURIP)
-		self.DHCP_DNS          = options.DHCP_DNS
+		self.Bind_To6           = utils.FindLocalIP6(self.Interface, self.OURIP)
+		self.DHCP_DNS           = options.DHCP_DNS
+		self.ExternalIP6        = options.ExternalIP6
 
 		if self.Interface == "ALL":
                 	self.Bind_To_ALL  = True
 		else:
 			self.Bind_To_ALL  = False
-
+		#IPV4
 		if self.Interface == "ALL":
 			self.IP_aton   = socket.inet_aton(self.OURIP)
 		else:
 			self.IP_aton   = socket.inet_aton(self.Bind_To)
-			
+		#IPV6
+		if self.Interface == "ALL":
+			if self.OURIP != None and utils.IsIPv6IP(self.OURIP):
+				self.IP_Pton6   = socket.inet_pton(socket.AF_INET6, self.OURIP)
+		else:
+			self.IP_Pton6   = socket.inet_pton(socket.AF_INET6, self.Bind_To6)
+		
+		#External IP
 		if self.ExternalIP:
+			if utils.IsIPv6IP(self.ExternalIP):
+				sys.exit(utils.color('[!] IPv6 address provided with -e parameter. Use -6 IPv6_address instead.', 1))
+
 			self.ExternalIPAton = socket.inet_aton(self.ExternalIP)
 			self.ExternalResponderIP = utils.RespondWithIP()
 		else:
 			self.ExternalResponderIP = self.Bind_To
+			
+		#External IPv6
+		if self.ExternalIP6:
+			self.ExternalIP6Pton = socket.inet_pton(socket.AF_INET6, self.ExternalIP6)
+			self.ExternalResponderIP6 = utils.RespondWithIP6()
+		else:
+			self.ExternalResponderIP6 = self.Bind_To6
 
 		self.Os_version      = sys.platform
 
@@ -207,6 +224,7 @@ class Settings:
 
 		#Generate Random stuff for one Responder session
 		self.MachineName       = 'WIN-'+''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(11)])
+		self.Username            = ''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ') for i in range(6)])
 		self.Domain            = ''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(4)])
 		self.DHCPHostname      = ''.join([random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(9)])
 		self.DomainName        = self.Domain + '.LOCAL'
