@@ -89,6 +89,40 @@ class DNS_Ans(Packet):
 		self.fields["QuestionName"] = ''.join(data[12:].split('\x00')[:1])
 		self.fields["IP"] = RespondWithIPAton()
 		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
+		
+# DNS Answer Packet OPT
+class DNS_AnsOPT(Packet):
+	fields = OrderedDict([
+		("Tid",              ""),
+		("Flags",            "\x85\x10"),
+		("Question",         "\x00\x01"),
+		("AnswerRRS",        "\x00\x01"),
+		("AuthorityRRS",     "\x00\x00"),
+		("AdditionalRRS",    "\x00\x01"),
+		("QuestionName",     ""),
+		("QuestionNameNull", "\x00"),
+		("Type",             "\x00\x01"),
+		("Class",            "\x00\x01"),
+		("AnswerPointer",    "\xc0\x0c"),
+		("Type1",            "\x00\x01"),
+		("Class1",           "\x00\x01"),
+		("TTL",              "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
+		("IPLen",            "\x00\x04"),
+		("IP",               "\x00\x00\x00\x00"),
+		("OPTName",          "\x00"),
+		("OPTType",          "\x00\x29"),
+		("OPTUDPSize",       "\x10\x00"),
+		("OPTRCode",         "\x00"),
+		("OPTEDNSVersion",   "\x00"),
+		("OPTLen",           "\x00\x00"),# Hardcoded since it's fixed to 0 in this case.
+		("OPTStr",           "\x00\x00"),
+	])
+
+	def calculate(self,data):
+		self.fields["Tid"] = data[0:2]
+		self.fields["QuestionName"] = ''.join(data[12:].split('\x00')[:1])
+		self.fields["IP"] = RespondWithIPAton()
+		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
 
 class DNS6_Ans(Packet):
 	fields = OrderedDict([
@@ -108,6 +142,39 @@ class DNS6_Ans(Packet):
 		("TTL",              "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
 		("IPLen",            "\x00\x04"),
 		("IP",               "\x00\x00\x00\x00"),
+	])
+
+	def calculate(self,data):
+		self.fields["Tid"] = data[0:2]
+		self.fields["QuestionName"] = ''.join(data[12:].split('\x00')[:1])
+		self.fields["IP"] = RespondWithIPPton()
+		self.fields["IPLen"] = StructPython2or3(">h",self.fields["IP"])
+
+class DNS6_AnsOPT(Packet):
+	fields = OrderedDict([
+		("Tid",              ""),
+		("Flags",            "\x85\x10"),
+		("Question",         "\x00\x01"),
+		("AnswerRRS",        "\x00\x01"),
+		("AuthorityRRS",     "\x00\x00"),
+		("AdditionalRRS",    "\x00\x01"),
+		("QuestionName",     ""),
+		("QuestionNameNull", "\x00"),
+		("Type",             "\x00\x1c"),
+		("Class",            "\x00\x01"),
+		("AnswerPointer",    "\xc0\x0c"),
+		("Type1",            "\x00\x1c"),
+		("Class1",           "\x00\x01"),
+		("TTL",              "\x00\x00\x00\x1e"), #30 secs, don't mess with their cache for too long..
+		("IPLen",            "\x00\x04"),
+		("IP",               "\x00\x00\x00\x00"),
+		("OPTName",          "\x00"),
+		("OPTType",          "\x00\x29"),
+		("OPTUDPSize",       "\x10\x00"),
+		("OPTRCode",         "\x00"),
+		("OPTEDNSVersion",   "\x00"),
+		("OPTLen",           "\x00\x00"),# Hardcoded since it's fixed to 0 in this case.
+		("OPTStr",           "\x00\x00"),
 	])
 
 	def calculate(self,data):
